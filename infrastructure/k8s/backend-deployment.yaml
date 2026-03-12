@@ -1,0 +1,22 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: calories-backend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: calories-backend
+  template:
+    metadata:
+      labels:
+        app: calories-backend
+    spec:
+      containers:
+        - name: api
+          image: ghcr.io/example/calories-backend:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: calories-backend-secrets

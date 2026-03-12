@@ -1,0 +1,17 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+
+# Flutter
+.dart_tool/
+.packages
+build/
+
+# Env
+.env
+*.log
+
+# IDE
+.vscode/
+.idea/

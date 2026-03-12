@@ -1,0 +1,46 @@
+name: cd-images
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository_owner }}/calories-backend
+            ghcr.io/${{ github.repository_owner }}/calories-meal-vision
+
+      - name: Build and push backend
+        uses: docker/build-push-action@v6
+        with:
+          context: backend
+          file: backend/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/calories-backend:${{ github.ref_name }}
+
+      - name: Build and push meal vision
+        uses: docker/build-push-action@v6
+        with:
+          context: ml_services/meal_vision_service
+          file: ml_services/meal_vision_service/Dockerfile
+          push: true
+          tags: ghcr.io/${{ github.repository_owner }}/calories-meal-vision:${{ github.ref_name }}
