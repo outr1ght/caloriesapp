@@ -1,4 +1,4 @@
-{
+﻿{
   "@@locale": "en",
   "appTitle": "CaloriesApp",
   "continueAction": "Continue",
@@ -39,5 +39,29 @@
   "recentMealsLabel": "Recent meals",
   "loadMealsError": "Unable to load meals.",
   "emptyMealsLabel": "No meals yet. Add your first meal.",
-  "loadReportsError": "Unable to load report data."
+  "loadReportsError": "Unable to load report data.",
+  "logoutAction": "Logout",
+  "chooseLanguageTitle": "Choose language",
+  "systemDefaultLanguage": "System default",
+  "languageEnglish": "English",
+  "languageSpanish": "Spanish",
+  "languageGerman": "German",
+  "languageFrench": "French",
+  "languageRussian": "Russian",
+  "systemLabel": "system",
+  "unexpectedErrorMessage": "Something went wrong. Please try again.",
+  "profileSetupTitle": "Profile setup",
+  "profileNameLabel": "Name",
+  "profileAgeLabel": "Age",
+  "profileHeightLabel": "Height (cm)",
+  "profileWeightLabel": "Weight (kg)",
+  "goalSetupTitle": "Calorie goal setup",
+  "goalCaloriesLabel": "Daily calories",
+  "goalProteinLabel": "Protein (g)",
+  "goalCarbsLabel": "Carbs (g)",
+  "goalFatLabel": "Fat (g)",
+  "foodDiaryTitle": "Food diary",
+  "analysisItemChicken": "Chicken breast",
+  "analysisItemRice": "Rice",
+  "analysisItemBroccoli": "Broccoli"
 }

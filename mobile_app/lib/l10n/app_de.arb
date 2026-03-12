@@ -1,4 +1,4 @@
-{
+﻿{
   "@@locale": "de",
   "appTitle": "CaloriesApp",
   "continueAction": "Weiter",
@@ -39,5 +39,29 @@
   "recentMealsLabel": "Letzte Mahlzeiten",
   "loadMealsError": "Mahlzeiten konnten nicht geladen werden.",
   "emptyMealsLabel": "Noch keine Mahlzeiten.",
-  "loadReportsError": "Berichte konnten nicht geladen werden."
+  "loadReportsError": "Berichte konnten nicht geladen werden.",
+  "logoutAction": "Abmelden",
+  "chooseLanguageTitle": "Sprache wahlen",
+  "systemDefaultLanguage": "Systemstandard",
+  "languageEnglish": "Englisch",
+  "languageSpanish": "Spanisch",
+  "languageGerman": "Deutsch",
+  "languageFrench": "Franzosisch",
+  "languageRussian": "Russisch",
+  "systemLabel": "system",
+  "unexpectedErrorMessage": "Etwas ist schiefgelaufen. Bitte erneut versuchen.",
+  "profileAgeLabel": "Alter",
+  "goalCarbsLabel": "Kohlenhydrate (g)",
+  "profileNameLabel": "Name",
+  "profileHeightLabel": "Grosse (cm)",
+  "goalFatLabel": "Fett (g)",
+  "goalCaloriesLabel": "Tagliche Kalorien",
+  "analysisItemRice": "Reis",
+  "analysisItemBroccoli": "Brokkoli",
+  "analysisItemChicken": "Hahnchenbrust",
+  "profileSetupTitle": "Profil einrichten",
+  "foodDiaryTitle": "Ernahrungstagebuch",
+  "goalProteinLabel": "Protein (g)",
+  "profileWeightLabel": "Gewicht (kg)",
+  "goalSetupTitle": "Kalorienziel einrichten"
 }

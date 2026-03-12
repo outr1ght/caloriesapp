@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/network/dio_client.dart';
@@ -22,7 +22,8 @@ class ApiMealsRepository implements MealsRepository {
       queryParameters: {'page': page, 'page_size': pageSize},
     );
 
-    final data = response.data ?? <String, dynamic>{};
+    final root = response.data ?? <String, dynamic>{};
+    final data = (root['data'] as Map<String, dynamic>?) ?? root;
     final items = (data['items'] as List<dynamic>? ?? <dynamic>[])
         .whereType<Map<String, dynamic>>()
         .map(_mealFromJson)
@@ -36,15 +37,17 @@ class ApiMealsRepository implements MealsRepository {
       '/meals',
       data: {
         'meal_type': mealType,
-        'consumed_at': (consumedAt ?? DateTime.now().toUtc()).toIso8601String(),
-        'image_id': imageId,
+        'source': imageId != null ? 'image_analysis' : 'manual',
+        'eaten_at': (consumedAt ?? DateTime.now().toUtc()).toIso8601String(),
         'items': items
-            .map((e) => {'name': e.name, 'grams': e.grams, 'confidence': e.confidence})
+            .map((e) => {'display_name': e.name, 'quantity': e.grams, 'unit': 'g'})
             .toList(),
       },
     );
 
-    return _mealFromJson(response.data ?? <String, dynamic>{});
+    final root = response.data ?? <String, dynamic>{};
+    final data = (root['data'] as Map<String, dynamic>?) ?? root;
+    return _mealFromJson(data);
   }
 
   Meal _mealFromJson(Map<String, dynamic> json) {
@@ -52,17 +55,19 @@ class ApiMealsRepository implements MealsRepository {
         .whereType<Map<String, dynamic>>()
         .map(
           (e) => MealItem(
-            name: (e['name'] as String?) ?? '',
-            grams: ((e['grams'] as num?) ?? 0).toDouble(),
-            confidence: ((e['confidence'] as num?) ?? 0).toDouble(),
+            name: (e['display_name'] as String?) ?? (e['name'] as String?) ?? '',
+            grams: ((e['quantity'] as num?) ?? (e['grams'] as num?) ?? 0).toDouble(),
+            confidence: ((e['confidence'] as num?) ?? 1).toDouble(),
           ),
         )
         .toList();
 
-    final nutrition = (json['nutrition'] as Map<String, dynamic>? ?? <String, dynamic>{});
+    final nutrition = (json['nutrition_value'] as Map<String, dynamic>?) ??
+        (json['nutrition'] as Map<String, dynamic>?) ??
+        <String, dynamic>{};
 
     return Meal(
-      id: (json['meal_id'] as String?) ?? '',
+      id: (json['id'] as String?) ?? (json['meal_id'] as String?) ?? '',
       mealType: (json['meal_type'] as String?) ?? 'lunch',
       items: items,
       nutrition: NutritionTotals(
@@ -71,7 +76,7 @@ class ApiMealsRepository implements MealsRepository {
         fatG: ((nutrition['fat_g'] as num?) ?? 0).toDouble(),
         carbsG: ((nutrition['carbs_g'] as num?) ?? 0).toDouble(),
       ),
-      consumedAt: DateTime.tryParse((json['consumed_at'] as String?) ?? '') ?? DateTime.now(),
+      consumedAt: DateTime.tryParse((json['eaten_at'] as String?) ?? (json['consumed_at'] as String?) ?? '') ?? DateTime.now(),
     );
   }
 }

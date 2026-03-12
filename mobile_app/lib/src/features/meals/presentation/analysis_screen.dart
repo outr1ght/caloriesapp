@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -15,6 +15,12 @@ class AnalysisScreen extends ConsumerWidget {
     const requiresManualReview = confidence < 0.65;
     final mealsState = ref.watch(mealsControllerProvider);
 
+    final sampleItems = <Map<String, String>>[
+      {'name': l10n.analysisItemChicken, 'amount': '160 g'},
+      {'name': l10n.analysisItemRice, 'amount': '120 g'},
+      {'name': l10n.analysisItemBroccoli, 'amount': '80 g'},
+    ];
+
     return Scaffold(
       appBar: AppBar(title: Text(l10n.mealAnalysisTitle)),
       body: ListView(
@@ -30,9 +36,14 @@ class AnalysisScreen extends ConsumerWidget {
               ),
             ),
           const SizedBox(height: 12),
-          const Card(child: ListTile(title: Text('Chicken breast'), trailing: Text('160 g'))),
-          const Card(child: ListTile(title: Text('Rice'), trailing: Text('120 g'))),
-          const Card(child: ListTile(title: Text('Broccoli'), trailing: Text('80 g'))),
+          ...sampleItems.map(
+            (item) => Card(
+              child: ListTile(
+                title: Text(item['name'] ?? ''),
+                trailing: Text(item['amount'] ?? ''),
+              ),
+            ),
+          ),
           const SizedBox(height: 8),
           OutlinedButton(onPressed: () {}, child: Text(l10n.editIngredientsAction)),
           const SizedBox(height: 16),
@@ -52,7 +63,7 @@ class AnalysisScreen extends ConsumerWidget {
         child: FilledButton(
           onPressed: () async {
             await ref.read(mealsControllerProvider.notifier).saveDemoMeal();
-            if (context.mounted) context.go('/dashboard');
+            if (context.mounted) context.go('/diary');
           },
           child: Text(l10n.saveMealAction),
         ),

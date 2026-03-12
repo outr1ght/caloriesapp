@@ -1,4 +1,4 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/api_client.dart';
 import '../../../core/network/dio_client.dart';
@@ -26,9 +26,12 @@ class ApiAuthRepository implements AuthRepository {
       data: {'email': email, 'password': password},
     );
 
-    final data = response.data ?? <String, dynamic>{};
-    final access = data['access_token'] as String?;
-    final refresh = data['refresh_token'] as String?;
+    final root = response.data ?? <String, dynamic>{};
+    final data = (root['data'] as Map<String, dynamic>?) ?? root;
+    final tokens = (data['tokens'] as Map<String, dynamic>?) ?? data;
+
+    final access = tokens['access_token'] as String?;
+    final refresh = tokens['refresh_token'] as String?;
     if (access == null || refresh == null) {
       throw StateError('Invalid login response');
     }
@@ -47,6 +50,18 @@ class ApiAuthRepository implements AuthRepository {
 
   @override
   Future<void> logout() async {
+    final session = await _sessionStorage.read();
+    if (session != null) {
+      try {
+        await _apiClient.post<Map<String, dynamic>>(
+          '/auth/logout',
+          data: {'refresh_token': session.refreshToken},
+        );
+      } catch (_) {
+        // Always clear local session even if network logout fails.
+      }
+    }
+
     await _apiClient.setSession(null);
   }
 }

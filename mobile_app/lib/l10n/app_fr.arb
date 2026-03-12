@@ -1,4 +1,4 @@
-{
+﻿{
   "@@locale": "fr",
   "appTitle": "CaloriesApp",
   "continueAction": "Continuer",
@@ -39,5 +39,29 @@
   "recentMealsLabel": "Repas recents",
   "loadMealsError": "Impossible de charger les repas.",
   "emptyMealsLabel": "Aucun repas pour le moment.",
-  "loadReportsError": "Impossible de charger les rapports."
+  "loadReportsError": "Impossible de charger les rapports.",
+  "logoutAction": "Se deconnecter",
+  "chooseLanguageTitle": "Choisir la langue",
+  "systemDefaultLanguage": "Par defaut du systeme",
+  "languageEnglish": "Anglais",
+  "languageSpanish": "Espagnol",
+  "languageGerman": "Allemand",
+  "languageFrench": "Francais",
+  "languageRussian": "Russe",
+  "systemLabel": "systeme",
+  "unexpectedErrorMessage": "Une erreur est survenue. Veuillez reessayer.",
+  "profileAgeLabel": "Age",
+  "goalCarbsLabel": "Glucides (g)",
+  "profileNameLabel": "Nom",
+  "profileHeightLabel": "Taille (cm)",
+  "goalFatLabel": "Lipides (g)",
+  "goalCaloriesLabel": "Calories quotidiennes",
+  "analysisItemRice": "Riz",
+  "analysisItemBroccoli": "Brocoli",
+  "analysisItemChicken": "Blanc de poulet",
+  "profileSetupTitle": "Configuration du profil",
+  "foodDiaryTitle": "Journal alimentaire",
+  "goalProteinLabel": "Proteines (g)",
+  "profileWeightLabel": "Poids (kg)",
+  "goalSetupTitle": "Configuration de l objectif calorique"
 }

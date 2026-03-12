@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -31,10 +31,13 @@ class DashboardScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Wrap(
               spacing: 8,
+              runSpacing: 8,
               children: [
                 FilledButton(onPressed: () => context.go('/capture'), child: Text(l10n.logMealAction)),
+                OutlinedButton(onPressed: () => context.go('/diary'), child: Text(l10n.foodDiaryTitle)),
                 OutlinedButton(onPressed: () => context.go('/reports'), child: Text(l10n.reportsNav)),
-                OutlinedButton(onPressed: () => context.go('/barcode'), child: Text(l10n.scanBarcodeAction)),
+                OutlinedButton(onPressed: () => context.go('/recommendations'), child: Text(l10n.recommendationsTitle)),
+                OutlinedButton(onPressed: () => context.go('/settings'), child: Text(l10n.settingsNav)),
               ],
             ),
             const SizedBox(height: 16),

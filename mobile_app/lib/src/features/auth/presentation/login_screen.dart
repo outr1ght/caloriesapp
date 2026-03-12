@@ -1,8 +1,9 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/error/error_handler.dart';
 import '../application/auth_controller.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
@@ -15,6 +16,7 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _errorHandler = const ErrorHandler();
 
   @override
   void dispose() {
@@ -30,9 +32,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     ref.listen(authControllerProvider, (previous, next) {
       if (next.hasValue && next.value != null) {
-        context.go('/dashboard');
+        context.go('/profile-setup');
       }
     });
+
+    final errorText = authState.hasError && authState.error != null
+        ? _errorHandler.toMessage(authState.error!, l10n)
+        : null;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.signInTitle)),
@@ -40,7 +46,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            TextField(controller: _emailController, decoration: InputDecoration(labelText: l10n.emailLabel)),
+            TextField(
+              controller: _emailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: InputDecoration(labelText: l10n.emailLabel),
+            ),
             const SizedBox(height: 12),
             TextField(
               controller: _passwordController,
@@ -62,9 +72,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            if (authState.hasError)
+            if (errorText != null)
               Text(
-                l10n.loginFailedMessage,
+                errorText,
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
           ],
@@ -73,3 +83,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
+

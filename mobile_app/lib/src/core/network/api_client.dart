@@ -1,10 +1,7 @@
-import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+﻿import 'package:dio/dio.dart';
 
-import '../storage/session_storage.dart';
 import '../../features/auth/domain/auth_session.dart';
-
-final apiBaseUrlProvider = Provider<String>((_) => 'http://localhost:8000/api/v1');
+import '../storage/session_storage.dart';
 
 class ApiClient {
   ApiClient(this._dio, this._sessionStorage);

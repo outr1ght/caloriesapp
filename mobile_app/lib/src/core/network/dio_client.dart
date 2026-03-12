@@ -1,9 +1,11 @@
-import 'package:dio/dio.dart';
+﻿import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import 'api_client.dart';
+import '../config/app_config.dart';
 import '../storage/session_storage.dart';
+import 'api_client.dart';
+import 'api_error.dart';
 
 final secureStorageProvider = Provider<FlutterSecureStorage>((_) => const FlutterSecureStorage());
 
@@ -12,16 +14,56 @@ final sessionStorageProvider = Provider<SessionStorage>((ref) {
 });
 
 final dioProvider = Provider<Dio>((ref) {
-  final baseUrl = ref.read(apiBaseUrlProvider);
-  return Dio(
+  final config = ref.read(appConfigProvider);
+
+  final dio = Dio(
     BaseOptions(
-      baseUrl: baseUrl,
-      connectTimeout: const Duration(seconds: 20),
-      receiveTimeout: const Duration(seconds: 30),
-      sendTimeout: const Duration(seconds: 20),
+      baseUrl: config.apiBaseUrl,
+      connectTimeout: Duration(milliseconds: config.connectTimeoutMs),
+      receiveTimeout: Duration(milliseconds: config.receiveTimeoutMs),
+      sendTimeout: Duration(milliseconds: config.sendTimeoutMs),
       headers: {'Content-Type': 'application/json'},
     ),
   );
+
+  dio.interceptors.add(
+    InterceptorsWrapper(
+      onError: (error, handler) {
+        final response = error.response;
+        String message = 'Request failed';
+        String? code;
+
+        final data = response?.data;
+        if (data is Map<String, dynamic>) {
+          final messageKey = data['message_key'];
+          if (messageKey is String && messageKey.isNotEmpty) {
+            message = messageKey;
+          }
+
+          final errorData = data['error'];
+          if (errorData is Map<String, dynamic>) {
+            final c = errorData['code'];
+            if (c is String && c.isNotEmpty) code = c;
+          }
+        }
+
+        handler.reject(
+          DioException(
+            requestOptions: error.requestOptions,
+            response: response,
+            type: error.type,
+            error: ApiError(
+              message: message,
+              statusCode: response?.statusCode,
+              code: code,
+            ),
+          ),
+        );
+      },
+    ),
+  );
+
+  return dio;
 });
 
 final apiClientProvider = Provider<ApiClient>((ref) {

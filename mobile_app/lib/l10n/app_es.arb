@@ -1,4 +1,4 @@
-{
+﻿{
   "@@locale": "es",
   "appTitle": "CaloriesApp",
   "continueAction": "Continuar",
@@ -39,5 +39,29 @@
   "recentMealsLabel": "Comidas recientes",
   "loadMealsError": "No se pudieron cargar comidas.",
   "emptyMealsLabel": "Todavia no hay comidas.",
-  "loadReportsError": "No se pudieron cargar reportes."
+  "loadReportsError": "No se pudieron cargar reportes.",
+  "logoutAction": "Cerrar sesion",
+  "chooseLanguageTitle": "Elegir idioma",
+  "systemDefaultLanguage": "Predeterminado del sistema",
+  "languageEnglish": "Ingles",
+  "languageSpanish": "Espanol",
+  "languageGerman": "Aleman",
+  "languageFrench": "Frances",
+  "languageRussian": "Ruso",
+  "systemLabel": "sistema",
+  "unexpectedErrorMessage": "Algo salio mal. Intentalo de nuevo.",
+  "profileAgeLabel": "Edad",
+  "goalCarbsLabel": "Carbohidratos (g)",
+  "profileNameLabel": "Nombre",
+  "profileHeightLabel": "Altura (cm)",
+  "goalFatLabel": "Grasa (g)",
+  "goalCaloriesLabel": "Calorias diarias",
+  "analysisItemRice": "Arroz",
+  "analysisItemBroccoli": "Brocoli",
+  "analysisItemChicken": "Pechuga de pollo",
+  "profileSetupTitle": "Configuracion de perfil",
+  "foodDiaryTitle": "Diario de comidas",
+  "goalProteinLabel": "Proteina (g)",
+  "profileWeightLabel": "Peso (kg)",
+  "goalSetupTitle": "Configuracion de objetivo calorico"
 }
