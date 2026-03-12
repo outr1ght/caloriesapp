@@ -113,5 +113,14 @@
     "firstNameLabel":  "Imya",
     "goalValidationMessage":  "Vvedite korrektnye znacheniya tseli.",
     "proteinTargetLabel":  "Tselyevoy belok (g)",
-    "saveMealAction":  "Sohranit priyom pishchi"
+    "saveMealAction":  "Sohranit priyom pishchi",
+    "lowConfidenceTitle":  "Nizkaya uverennost",
+    "unknownBrandLabel":  "Neizvestnyy brend",
+    "invalidIngredientsMessage":  "Vvedite korrektnye ingredienty pered sohraneniem.",
+    "lowConfidenceMessage":  "Proverte ingredienty pered sohraneniem.",
+    "saveSuccessMessage":  "Uspeshno sohraneno.",
+    "retryAction":  "Povtorit",
+    "unknownProductLabel":  "Neizvestnyy produkt",
+    "invalidBarcodeSaveMessage":  "Dannye produkta nepolnye, sohranenie nedostupno.",
+    "barcodeNotFoundLabel":  "Produkt po etomu shtrikhkodu ne naiden."
 }

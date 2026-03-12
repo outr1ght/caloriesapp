@@ -17,6 +17,7 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
   final _manualController = TextEditingController();
   String? _code;
   bool _locked = false;
+  bool _saving = false;
 
   @override
   void dispose() {
@@ -64,23 +65,47 @@ class _BarcodeScanScreenState extends ConsumerState<BarcodeScanScreen> {
           ),
           const SizedBox(height: 12),
           if (state.isLoading) const Center(child: CircularProgressIndicator()),
-          if (state.hasError) Text(l10n.genericLoadFailedLabel),
-          if (result != null && !result.found) Text(l10n.genericEmptyLabel),
+          if (state.hasError) ...[
+            Text(l10n.genericLoadFailedLabel),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => ref.read(barcodeProvider.notifier).lookup(_manualController.text),
+              child: Text(l10n.retryAction),
+            ),
+          ],
+          if (result != null && !result.found) Text(l10n.barcodeNotFoundLabel),
           if (result?.product != null)
             Card(
               child: ListTile(
-                title: Text(result!.product!.name),
-                subtitle: Text(result.product!.brand.isEmpty ? '-' : result.product!.brand),
+                title: Text(result!.product!.name.isEmpty ? l10n.unknownProductLabel : result.product!.name),
+                subtitle: Text(result.product!.brand.isEmpty ? l10n.unknownBrandLabel : result.product!.brand),
                 trailing: Text(result.product!.barcode),
               ),
             ),
+          if (_saving) const LinearProgressIndicator(),
           if (result?.product != null)
             FilledButton(
-              onPressed: () async {
-                final mealId = await ref.read(barcodeProvider.notifier).saveAsMeal();
-                if (!mounted || mealId == null || mealId.isEmpty) return;
-                context.go('/food-diary/meal/$mealId');
-              },
+              onPressed: _saving
+                  ? null
+                  : () async {
+                      if (!ref.read(barcodeProvider.notifier).hasSavableProduct()) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.invalidBarcodeSaveMessage)));
+                        return;
+                      }
+
+                      setState(() => _saving = true);
+                      final mealId = await ref.read(barcodeProvider.notifier).saveAsMeal();
+                      if (!mounted) return;
+                      setState(() => _saving = false);
+
+                      if (mealId == null || mealId.isEmpty) {
+                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.genericSaveFailedLabel)));
+                        return;
+                      }
+
+                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(l10n.saveSuccessMessage)));
+                      context.go('/food-diary/meal/$mealId');
+                    },
               child: Text(l10n.saveMealAction),
             ),
           const SizedBox(height: 8),

@@ -113,5 +113,14 @@
     "firstNameLabel":  "Prenom",
     "goalValidationMessage":  "Veuillez saisir des objectifs valides.",
     "proteinTargetLabel":  "Objectif proteines (g)",
-    "saveMealAction":  "Enregistrer le repas"
+    "saveMealAction":  "Enregistrer le repas",
+    "lowConfidenceTitle":  "Confiance faible detectee",
+    "unknownBrandLabel":  "Marque inconnue",
+    "invalidIngredientsMessage":  "Veuillez saisir des ingredients valides avant sauvegarde.",
+    "lowConfidenceMessage":  "Verifiez les ingredients avant de sauvegarder.",
+    "saveSuccessMessage":  "Enregistre avec succes.",
+    "retryAction":  "Reessayer",
+    "unknownProductLabel":  "Produit inconnu",
+    "invalidBarcodeSaveMessage":  "Les donnees produit sont incompletes et ne peuvent pas etre enregistrees.",
+    "barcodeNotFoundLabel":  "Aucun produit trouve pour ce code-barres."
 }

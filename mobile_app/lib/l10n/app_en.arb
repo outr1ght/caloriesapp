@@ -113,5 +113,14 @@
     "firstNameLabel":  "First name",
     "goalValidationMessage":  "Please enter valid goal values.",
     "proteinTargetLabel":  "Protein target (g)",
-    "saveMealAction":  "Save meal"
+    "saveMealAction":  "Save meal",
+    "lowConfidenceTitle":  "Low confidence detected",
+    "unknownBrandLabel":  "Unknown brand",
+    "invalidIngredientsMessage":  "Please provide valid ingredient names before saving.",
+    "lowConfidenceMessage":  "Review ingredient names before saving this meal.",
+    "saveSuccessMessage":  "Saved successfully.",
+    "retryAction":  "Retry",
+    "unknownProductLabel":  "Unknown product",
+    "invalidBarcodeSaveMessage":  "Product data is incomplete and cannot be saved.",
+    "barcodeNotFoundLabel":  "No product found for this barcode."
 }

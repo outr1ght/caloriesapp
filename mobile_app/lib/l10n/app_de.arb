@@ -113,5 +113,14 @@
     "firstNameLabel":  "Vorname",
     "goalValidationMessage":  "Bitte gueltige Zielwerte eingeben.",
     "proteinTargetLabel":  "Protein-Ziel (g)",
-    "saveMealAction":  "Mahlzeit speichern"
+    "saveMealAction":  "Mahlzeit speichern",
+    "lowConfidenceTitle":  "Niedrige Sicherheit erkannt",
+    "unknownBrandLabel":  "Unbekannte Marke",
+    "invalidIngredientsMessage":  "Bitte gueltige Zutaten vor dem Speichern angeben.",
+    "lowConfidenceMessage":  "Bitte Zutaten vor dem Speichern pruefen.",
+    "saveSuccessMessage":  "Erfolgreich gespeichert.",
+    "retryAction":  "Erneut versuchen",
+    "unknownProductLabel":  "Unbekanntes Produkt",
+    "invalidBarcodeSaveMessage":  "Produktdaten sind unvollstaendig und koennen nicht gespeichert werden.",
+    "barcodeNotFoundLabel":  "Kein Produkt fuer diesen Barcode gefunden."
 }

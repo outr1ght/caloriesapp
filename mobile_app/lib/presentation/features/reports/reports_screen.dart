@@ -52,7 +52,14 @@ class ReportsScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 16),
           if (reportState.isLoading) const Center(child: CircularProgressIndicator()),
-          if (reportState.hasError) Text(l10n.genericLoadFailedLabel),
+          if (reportState.hasError) ...[
+            Text(l10n.genericLoadFailedLabel),
+            const SizedBox(height: 8),
+            OutlinedButton(
+              onPressed: () => ref.read(reportsProvider.notifier).setPeriod(period),
+              child: Text(l10n.retryAction),
+            ),
+          ],
           if (reportState.hasValue)
             Card(
               child: ListTile(

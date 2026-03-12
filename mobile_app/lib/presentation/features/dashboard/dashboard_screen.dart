@@ -43,7 +43,14 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   Text(l10n.recentMealsTitle),
                   const SizedBox(height: 8),
-                  if (mealsState.hasError) Text(l10n.genericLoadFailedLabel),
+                  if (mealsState.hasError) ...[
+                    Text(l10n.genericLoadFailedLabel),
+                    const SizedBox(height: 8),
+                    OutlinedButton(
+                      onPressed: () => ref.read(mealsProvider.notifier).refresh(),
+                      child: Text(l10n.retryAction),
+                    ),
+                  ],
                   if (mealsState.isLoading) const CircularProgressIndicator(),
                   if (mealsState.hasValue && mealsState.value!.isEmpty) Text(l10n.genericEmptyLabel),
                   if (mealsState.hasValue)

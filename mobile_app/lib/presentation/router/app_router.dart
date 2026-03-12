@@ -23,6 +23,17 @@ import '../features/recommendations/recommendations_screen.dart';
 import '../features/reports/reports_screen.dart';
 import '../features/settings/settings_screen.dart';
 import '../features/weight_tracking/weight_tracking_screen.dart';
+import 'route_guard.dart';
+
+bool _isProfileComplete(dynamic profile) {
+  if (profile == null) return false;
+  return profile.firstName.toString().trim().isNotEmpty && profile.age > 0 && profile.heightCm > 0 && profile.weightKg > 0;
+}
+
+bool _hasGoal(dynamic goal) {
+  if (goal == null) return false;
+  return goal.targetCalories > 0;
+}
 
 final goRouterProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authStateProvider);
@@ -33,46 +44,17 @@ final goRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     initialLocation: '/splash',
     redirect: (context, state) {
-      final path = state.matchedLocation;
-      const publicRoutes = {'/splash', '/onboarding', '/login', '/signup'};
-      final isPublic = publicRoutes.contains(path);
-
-      if (auth.isLoading) {
-        return path == '/splash' ? null : '/splash';
-      }
-
-      if (!isAuthenticated) {
-        if (!isPublic) return '/login';
-        if (path == '/splash') return '/onboarding';
-        return null;
-      }
-
-      if (path == '/login' || path == '/signup' || path == '/onboarding') {
-        return '/dashboard';
-      }
-
-      if (profile.isLoading || goals.isLoading) {
-        return path == '/splash' ? null : '/splash';
-      }
-
-      final isProfileComplete = profile.valueOrNull != null;
-      if (!isProfileComplete && path != '/profile-setup') {
-        return '/profile-setup';
-      }
-
-      if (isProfileComplete) {
-        final hasGoal = goals.valueOrNull != null;
-        if (!hasGoal && path != '/goal-setup') {
-          return '/goal-setup';
-        }
-      }
-
-      if ((path == '/profile-setup' && isProfileComplete) || (path == '/goal-setup' && goals.valueOrNull != null)) {
-        return '/dashboard';
-      }
-
-      if (path == '/splash') return '/dashboard';
-      return null;
+      return AppRouteGuard.redirect(
+        RouteGuardState(
+          path: state.matchedLocation,
+          authLoading: auth.isLoading,
+          isAuthenticated: isAuthenticated,
+          profileLoading: profile.isLoading,
+          goalsLoading: goals.isLoading,
+          isProfileComplete: _isProfileComplete(profile.valueOrNull),
+          hasGoal: _hasGoal(goals.valueOrNull),
+        ),
+      );
     },
     routes: [
       GoRoute(path: '/splash', builder: (_, __) => const SplashScreen()),

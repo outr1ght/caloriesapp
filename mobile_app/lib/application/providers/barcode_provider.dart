@@ -27,10 +27,18 @@ class BarcodeController extends AsyncNotifier<BarcodeLookupEntity?> {
     });
   }
 
+  bool hasSavableProduct() {
+    final product = state.valueOrNull?.product;
+    if (product == null) return false;
+    return product.name.trim().isNotEmpty;
+  }
+
   Future<String?> saveAsMeal() async {
     final current = state.valueOrNull;
     final product = current?.product;
-    if (product == null) return null;
+    if (product == null || product.name.trim().isEmpty) {
+      return null;
+    }
 
     final usecase = SaveBarcodeMealUseCase(ref.read(barcodeRepositoryProvider));
     return usecase(product);
