@@ -1,55 +1,29 @@
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-
-from app.db.repositories.user_repository import user_repository
-from app.schemas.user import GoalsPatch, MeResponse, ProfilePatch, SettingsPatch
-
+﻿from sqlalchemy.ext.asyncio import AsyncSession
+from app.repositories.user_repository import UserRepository
+from app.schemas.profile import LocaleUpdateRequest, UserProfileUpdateRequest
 
 class UserService:
-    def me(self, db: Session, user_id: str) -> MeResponse:
-        user = user_repository.get_active_by_id(db, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.users = UserRepository(session)
 
-        settings = user_repository.ensure_settings(db, user_id)
-        db.commit()
+    async def get_me(self, user_id: str):
+        return await self.users.get_by_id(user_id)
 
-        return MeResponse(
-            user_id=user.id,
-            email=user.email,
-            locale=str(settings.locale.value),
-            unit_system=str(settings.unit_system.value),
-        )
+    async def update_profile(self, user_id: str, payload: UserProfileUpdateRequest):
+        profile = await self.users.get_or_create_profile(user_id)
+        for key, value in payload.model_dump(exclude_none=True).items():
+            setattr(profile, key, value)
+        await self.session.commit()
+        await self.session.refresh(profile)
+        return profile
 
-    def patch_profile(self, db: Session, user_id: str, payload: ProfilePatch) -> None:
-        user = user_repository.get_active_by_id(db, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        profile = user_repository.ensure_profile(db, user_id)
-        for field, value in payload.model_dump(exclude_unset=True).items():
-            setattr(profile, field, value)
-        db.commit()
-
-    def patch_settings(self, db: Session, user_id: str, payload: SettingsPatch) -> None:
-        user = user_repository.get_active_by_id(db, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        settings = user_repository.ensure_settings(db, user_id)
-        for field, value in payload.model_dump(exclude_unset=True).items():
-            setattr(settings, field, value)
-        db.commit()
-
-    def patch_goals(self, db: Session, user_id: str, payload: GoalsPatch) -> None:
-        user = user_repository.get_active_by_id(db, user_id)
-        if not user:
-            raise HTTPException(status_code=404, detail="User not found")
-
-        goals = user_repository.ensure_goals(db, user_id)
-        for field, value in payload.model_dump(exclude_unset=True).items():
-            setattr(goals, field, value)
-        db.commit()
-
-
-user_service = UserService()
+    async def update_locale(self, user_id: str, payload: LocaleUpdateRequest):
+        user = await self.users.get_by_id(user_id)
+        if user is None:
+            return None
+        user.locale = payload.locale
+        user.timezone = payload.timezone
+        await self.session.commit()
+        await self.session.refresh(user)
+        return user

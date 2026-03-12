@@ -1,51 +1,79 @@
-from hashlib import sha256
-
-from fastapi import HTTPException
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
-from app.core.localization import t
-from app.core.security import (
-    create_access_token,
-    create_refresh_token,
-    hash_password,
-    parse_subject_from_token,
-    verify_password,
-)
-from app.db.models import User
-from app.schemas.auth import LoginRequest, RegisterRequest, TokenPair
-
+﻿from datetime import UTC, datetime
+from sqlalchemy.ext.asyncio import AsyncSession
+from app.common.exceptions import AppException, ErrorCode
+from app.core.security import TokenPair, create_token_pair, decode_token, hash_password, verify_password
+from app.core.token_store import TokenStore
+from app.db.models.enums import AuthProvider
+from app.repositories.user_repository import UserRepository
+from app.schemas.auth import LoginRequest, OAuthLoginRequest, RegisterRequest
 
 class AuthService:
-    def register(self, db: Session, req: RegisterRequest) -> TokenPair:
-        exists = db.scalar(select(User).where(User.email == req.email.lower()))
-        if exists:
-            raise HTTPException(status_code=409, detail="Email already registered")
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.users = UserRepository(session)
+        self.token_store = TokenStore()
 
-        user = User(email=req.email.lower(), password_hash=hash_password(req.password))
-        db.add(user)
-        db.commit()
-        db.refresh(user)
-        return TokenPair(access_token=create_access_token(user.id), refresh_token=create_refresh_token(user.id))
+    async def register(self, payload: RegisterRequest) -> tuple[object, TokenPair]:
+        existing = await self.users.get_by_email(payload.email)
+        if existing is not None:
+            raise AppException(code=ErrorCode.CONFLICT, message_key="errors.auth.email_already_used", status_code=409)
+        user = await self.users.create_user(email=payload.email, hashed_password=hash_password(payload.password.get_secret_value()), locale=payload.locale.value, timezone=payload.timezone)
+        await self.users.create_identity(user_id=user.id, provider=AuthProvider.LOCAL, provider_user_id=user.email, provider_email=user.email)
+        await self.users.get_or_create_profile(user.id)
+        tokens = create_token_pair(user.id)
+        refresh_payload = decode_token(tokens.refresh_token)
+        await self.token_store.allow_refresh_jti(refresh_payload.jti, ttl_days=30)
+        await self.session.commit()
+        return user, tokens
 
-    def login(self, db: Session, req: LoginRequest, locale: str) -> TokenPair:
-        user = db.scalar(select(User).where(User.email == req.email.lower(), User.deleted_at.is_(None)))
-        if not user or not verify_password(req.password, user.password_hash):
-            raise HTTPException(status_code=401, detail=t("auth.invalid", locale))
-        return TokenPair(access_token=create_access_token(user.id), refresh_token=create_refresh_token(user.id))
+    async def login(self, payload: LoginRequest) -> tuple[object, TokenPair]:
+        user = await self.users.get_by_email(payload.email)
+        if user is None or not user.hashed_password or not verify_password(payload.password.get_secret_value(), user.hashed_password):
+            raise AppException(code=ErrorCode.AUTH_UNAUTHORIZED, message_key="errors.auth.invalid_credentials", status_code=401)
+        user.last_login_at = datetime.now(UTC)
+        tokens = create_token_pair(user.id)
+        refresh_payload = decode_token(tokens.refresh_token)
+        await self.token_store.allow_refresh_jti(refresh_payload.jti, ttl_days=30)
+        await self.session.commit()
+        return user, tokens
 
-    def refresh(self, refresh_token: str) -> TokenPair:
-        subject = parse_subject_from_token(refresh_token, expected_type="refresh")
-        if not subject:
-            raise HTTPException(status_code=401, detail="Invalid refresh token")
-        return TokenPair(access_token=create_access_token(subject), refresh_token=create_refresh_token(subject))
+    async def refresh(self, refresh_token: str) -> TokenPair:
+        payload = decode_token(refresh_token)
+        if payload.token_type.value != "refresh":
+            raise AppException(code=ErrorCode.AUTH_INVALID_TOKEN, message_key="errors.auth.invalid_token_type", status_code=401)
+        if not await self.token_store.is_refresh_allowed(payload.jti):
+            raise AppException(code=ErrorCode.AUTH_UNAUTHORIZED, message_key="errors.auth.refresh_revoked", status_code=401)
+        await self.token_store.revoke_refresh_jti(payload.jti, ttl_days=30)
+        new_pair = create_token_pair(payload.sub)
+        new_payload = decode_token(new_pair.refresh_token)
+        await self.token_store.allow_refresh_jti(new_payload.jti, ttl_days=30)
+        return new_pair
 
-    def oauth_exchange(self, provider: str, id_token: str) -> TokenPair:
-        # MVP placeholder: external provider validation is implemented in a dedicated auth adapter later.
-        if not id_token:
-            raise HTTPException(status_code=400, detail="Missing id_token")
-        subject = sha256(f"{provider}:{id_token}".encode("utf-8")).hexdigest()[:32]
-        return TokenPair(access_token=create_access_token(subject), refresh_token=create_refresh_token(subject))
+    async def logout(self, refresh_token: str | None) -> None:
+        if not refresh_token:
+            return
+        try:
+            payload = decode_token(refresh_token)
+        except ValueError:
+            return
+        await self.token_store.revoke_refresh_jti(payload.jti, ttl_days=30)
 
-
-auth_service = AuthService()
+    async def oauth_login(self, payload: OAuthLoginRequest) -> tuple[object, TokenPair]:
+        if payload.provider == AuthProvider.LOCAL:
+            raise AppException(code=ErrorCode.VALIDATION_ERROR, message_key="errors.auth.invalid_oauth_provider", status_code=422)
+        provider_user_id = payload.id_token or payload.code
+        if not provider_user_id:
+            raise AppException(code=ErrorCode.VALIDATION_ERROR, message_key="errors.auth.oauth_missing_token", status_code=422)
+        identity = await self.users.get_identity(payload.provider, provider_user_id)
+        if identity is not None:
+            user = identity.user
+        else:
+            synthetic_email = f"{payload.provider.value}_{provider_user_id[:16]}@oauth.local"
+            user = await self.users.create_user(email=synthetic_email, hashed_password=None, locale="en", timezone="UTC")
+            await self.users.create_identity(user_id=user.id, provider=payload.provider, provider_user_id=provider_user_id, provider_email=None)
+            await self.users.get_or_create_profile(user.id)
+        tokens = create_token_pair(user.id)
+        rp = decode_token(tokens.refresh_token)
+        await self.token_store.allow_refresh_jti(rp.jti, ttl_days=30)
+        await self.session.commit()
+        return user, tokens

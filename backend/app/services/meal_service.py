@@ -1,120 +1,58 @@
-from fastapi import HTTPException
-from sqlalchemy.orm import Session
-
-from app.db.models.enums import MealType
-from app.db.repositories.meal_repository import meal_repository
-from app.schemas.common import build_pagination_meta
-from app.schemas.meal import MealCreateRequest, MealItemIn, MealListResponse, MealPatchRequest, MealResponse, NutritionTotals
-from app.services.nutrition.nutrition_service import nutrition_service
-
+﻿from sqlalchemy.ext.asyncio import AsyncSession
+from app.common.exceptions import AppException, ErrorCode
+from app.db.models.meal import Meal, MealItem
+from app.db.models.nutrition import NutritionValue
+from app.repositories.meal_repository import MealRepository
+from app.schemas.meals import MealCreateRequest, MealListQuery, MealUpdateRequest
+from app.services.nutrition_calculation_service import NutritionCalculationService
 
 class MealService:
-    def _map_items_with_nutrition(self, db: Session, items: list[MealItemIn]) -> tuple[list[dict], NutritionTotals]:
-        payloads: list[dict] = []
-        totals = {"calories": 0.0, "protein_g": 0.0, "fat_g": 0.0, "carbs_g": 0.0}
+    def __init__(self, session: AsyncSession) -> None:
+        self.session = session
+        self.repo = MealRepository(session)
 
-        for item in items:
-            mapped = nutrition_service.map_item(db, item.name, item.grams)
-            totals["calories"] += mapped["calories"]
-            totals["protein_g"] += mapped["protein_g"]
-            totals["fat_g"] += mapped["fat_g"]
-            totals["carbs_g"] += mapped["carbs_g"]
+    async def create_meal(self, user_id: str, payload: MealCreateRequest) -> Meal:
+        meal = Meal(user_id=user_id, title=payload.title, notes=payload.notes, meal_type=payload.meal_type, source=payload.source, eaten_at=payload.eaten_at)
+        await self.repo.create_meal(meal)
+        nutrition_inputs = []
+        for item in payload.items:
+            nv = None
+            if item.nutrition is not None:
+                nv = NutritionValue(calories=item.nutrition.calories, protein_g=item.nutrition.protein_g, carbs_g=item.nutrition.carbs_g, fat_g=item.nutrition.fat_g, fiber_g=item.nutrition.fiber_g, sugar_g=item.nutrition.sugar_g, sodium_mg=item.nutrition.sodium_mg, serving_size_g=item.nutrition.serving_size_g, source=item.nutrition.source, confidence=item.nutrition.confidence)
+                self.session.add(nv)
+                await self.session.flush()
+                nutrition_inputs.append(item.nutrition)
+            await self.repo.add_item(MealItem(meal_id=meal.id, ingredient_id=item.ingredient_id, food_product_id=item.food_product_id, nutrition_value_id=nv.id if nv else None, display_name=item.display_name, quantity=item.quantity, unit=item.unit, position=item.position))
+        if nutrition_inputs:
+            aggregate = NutritionCalculationService.aggregate(nutrition_inputs)
+            total_nv = NutritionValue(calories=aggregate.calories, protein_g=aggregate.protein_g, carbs_g=aggregate.carbs_g, fat_g=aggregate.fat_g, fiber_g=aggregate.fiber_g, sugar_g=aggregate.sugar_g, sodium_mg=aggregate.sodium_mg, source="deterministic", confidence=aggregate.confidence)
+            self.session.add(total_nv)
+            await self.session.flush()
+            meal.nutrition_value_id = total_nv.id
+        await self.session.commit()
+        reloaded = await self.repo.get_meal(user_id, meal.id)
+        if reloaded is None:
+            raise AppException(code=ErrorCode.INTERNAL_ERROR, message_key="errors.meals.create_failed", status_code=500)
+        return reloaded
 
-            payloads.append(
-                {
-                    "name": item.name,
-                    "grams": item.grams,
-                    "confidence": item.confidence,
-                    "calories": mapped["calories"],
-                    "protein_g": mapped["protein_g"],
-                    "fat_g": mapped["fat_g"],
-                    "carbs_g": mapped["carbs_g"],
-                }
-            )
+    async def get_meal(self, user_id: str, meal_id: str) -> Meal:
+        meal = await self.repo.get_meal(user_id, meal_id)
+        if meal is None:
+            raise AppException(code=ErrorCode.NOT_FOUND, message_key="errors.meals.not_found", status_code=404)
+        return meal
 
-        return payloads, NutritionTotals(**totals)
+    async def list_meals(self, user_id: str, query: MealListQuery) -> tuple[list[Meal], int]:
+        return await self.repo.list_meals(user_id=user_id, page=query.page, page_size=query.page_size, from_dt=query.from_dt, to_dt=query.to_dt)
 
-    def _meal_to_response(self, db: Session, meal) -> MealResponse:
-        db_items = meal_repository.get_items(db, meal.id)
-        response_items = [MealItemIn(name=i.name, grams=float(i.grams), confidence=i.confidence) for i in db_items]
+    async def update_meal(self, user_id: str, meal_id: str, payload: MealUpdateRequest) -> Meal:
+        meal = await self.get_meal(user_id, meal_id)
+        for k, v in payload.model_dump(exclude_none=True).items():
+            setattr(meal, k, v)
+        await self.session.commit()
+        await self.session.refresh(meal)
+        return meal
 
-        totals = {
-            "calories": float(sum(i.calories for i in db_items)),
-            "protein_g": float(sum(i.protein_g for i in db_items)),
-            "fat_g": float(sum(i.fat_g for i in db_items)),
-            "carbs_g": float(sum(i.carbs_g for i in db_items)),
-        }
-
-        return MealResponse(
-            meal_id=meal.id,
-            meal_type=meal.meal_type.value,
-            consumed_at=meal.consumed_at,
-            items=response_items,
-            nutrition=NutritionTotals(**totals),
-        )
-
-    def create_meal(self, db: Session, user_id: str, payload: MealCreateRequest) -> MealResponse:
-        item_payloads, totals = self._map_items_with_nutrition(db, payload.items)
-        meal = meal_repository.create(
-            db=db,
-            user_id=user_id,
-            meal_type=payload.meal_type,
-            consumed_at=payload.consumed_at,
-            image_id=payload.image_id,
-            analysis_confidence=None,
-            item_payloads=item_payloads,
-        )
-        db.commit()
-        db.refresh(meal)
-
-        return MealResponse(
-            meal_id=meal.id,
-            meal_type=meal.meal_type.value,
-            consumed_at=meal.consumed_at,
-            items=payload.items,
-            nutrition=totals,
-        )
-
-    def list_meals(self, db: Session, user_id: str, page: int, page_size: int) -> MealListResponse:
-        meals, total_items = meal_repository.list_by_user(db, user_id, page=page, page_size=page_size)
-        items = [self._meal_to_response(db, meal) for meal in meals]
-        meta = build_pagination_meta(page=page, page_size=page_size, total_items=total_items)
-        return MealListResponse(items=items, pagination=meta)
-
-    def get_meal(self, db: Session, user_id: str, meal_id: str) -> MealResponse:
-        meal = meal_repository.get_by_id(db, user_id, meal_id)
-        if not meal:
-            raise HTTPException(status_code=404, detail="Meal not found")
-        return self._meal_to_response(db, meal)
-
-    def patch_meal(self, db: Session, user_id: str, meal_id: str, payload: MealPatchRequest) -> MealResponse:
-        meal = meal_repository.get_by_id(db, user_id, meal_id)
-        if not meal:
-            raise HTTPException(status_code=404, detail="Meal not found")
-
-        item_payloads, totals = self._map_items_with_nutrition(db, payload.items)
-        meal.meal_type = MealType(payload.meal_type)
-        meal.consumed_at = payload.consumed_at
-        meal.image_id = payload.image_id
-        meal_repository.replace_items(db, meal, item_payloads)
-        db.commit()
-        db.refresh(meal)
-
-        return MealResponse(
-            meal_id=meal.id,
-            meal_type=meal.meal_type.value,
-            consumed_at=meal.consumed_at,
-            items=payload.items,
-            nutrition=totals,
-        )
-
-    def delete_meal(self, db: Session, user_id: str, meal_id: str) -> None:
-        meal = meal_repository.get_by_id(db, user_id, meal_id)
-        if not meal:
-            raise HTTPException(status_code=404, detail="Meal not found")
-
-        meal_repository.soft_delete(db, meal)
-        db.commit()
-
-
-meal_service = MealService()
+    async def delete_meal(self, user_id: str, meal_id: str) -> None:
+        meal = await self.get_meal(user_id, meal_id)
+        meal.mark_deleted()
+        await self.session.commit()
