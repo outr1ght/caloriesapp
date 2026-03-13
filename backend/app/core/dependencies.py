@@ -1,4 +1,4 @@
-﻿from collections.abc import AsyncGenerator
+from collections.abc import AsyncGenerator
 
 from fastapi import Depends
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -31,3 +31,4 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials | None = De
     if user is None:
         raise AppException(code=ErrorCode.AUTH_UNAUTHORIZED, message_key="errors.auth.user_not_found", status_code=401)
     return user
+

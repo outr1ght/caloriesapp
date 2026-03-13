@@ -1,4 +1,4 @@
-﻿from enum import StrEnum
+from enum import StrEnum
 
 
 class UserRole(StrEnum):
@@ -15,4 +15,6 @@ class AuthProvider(StrEnum):
 class LanguageCode(StrEnum):
     EN = "en"
     ES = "es"
+    DE = "de"
+    FR = "fr"
     RU = "ru"

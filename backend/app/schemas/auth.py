@@ -1,4 +1,4 @@
-﻿from datetime import datetime
+from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr
 
@@ -21,7 +21,7 @@ class LoginRequest(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    refresh_token: str
+    refresh_token: str = Field(min_length=32, max_length=4096)
 
 
 class OAuthLoginRequest(BaseModel):
@@ -34,13 +34,13 @@ class OAuthLoginRequest(BaseModel):
 
 class LogoutRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    refresh_token: str | None = None
+    refresh_token: str = Field(min_length=32, max_length=4096) | None = None
 
 
 class TokenPairDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
     access_token: str
-    refresh_token: str
+    refresh_token: str = Field(min_length=32, max_length=4096)
     token_type: str = "bearer"
     expires_in: int
 
@@ -61,3 +61,4 @@ class AuthSessionResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     user: AuthUserDTO
     tokens: TokenPairDTO
+

@@ -3,15 +3,15 @@ services:
   postgres:
     image: postgres:16
     environment:
-      POSTGRES_USER: calories
-      POSTGRES_PASSWORD: calories
-      POSTGRES_DB: calories
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: nutrition_app
     ports:
       - "5432:5432"
     volumes:
       - pg_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U calories -d calories"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d nutrition_app"]
       interval: 5s
       timeout: 5s
       retries: 20
@@ -47,10 +47,14 @@ services:
     env_file:
       - ../backend/.env.example
     environment:
-      RUN_MIGRATIONS: "1"
-      DATABASE_URL: postgresql+psycopg://calories:calories@postgres:5432/calories
-      REDIS_URL: redis://redis:6379/0
-      S3_ENDPOINT_URL: http://minio:9000
+      APP_DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/nutrition_app
+      APP_REDIS_URL: redis://redis:6379/0
+      APP_S3_ENDPOINT_URL: http://minio:9000
+      APP_S3_ACCESS_KEY_ID: minioadmin
+      APP_S3_SECRET_ACCESS_KEY: minioadmin
+      APP_S3_BUCKET: nutrition-assets
+      APP_S3_USE_SSL: "false"
+    command: sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
     ports:
       - "8000:8000"
     depends_on:
@@ -61,7 +65,7 @@ services:
       minio:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/health"]
       interval: 10s
       timeout: 5s
       retries: 20
@@ -72,19 +76,17 @@ services:
     env_file:
       - ../backend/.env.example
     environment:
-      DATABASE_URL: postgresql+psycopg://calories:calories@postgres:5432/calories
-      REDIS_URL: redis://redis:6379/0
-      S3_ENDPOINT_URL: http://minio:9000
-    command: celery -A app.workers.celery_app.celery_app worker --loglevel=info
+      APP_DATABASE_URL: postgresql+asyncpg://postgres:postgres@postgres:5432/nutrition_app
+      APP_REDIS_URL: redis://redis:6379/0
+      APP_S3_ENDPOINT_URL: http://minio:9000
+      APP_S3_ACCESS_KEY_ID: minioadmin
+      APP_S3_SECRET_ACCESS_KEY: minioadmin
+      APP_S3_BUCKET: nutrition-assets
+      APP_S3_USE_SSL: "false"
+    command: celery -A app.worker.celery_app.celery_app worker --loglevel=info
     depends_on:
       backend:
         condition: service_healthy
-
-  meal_vision_service:
-    build:
-      context: ../ml_services/meal_vision_service
-    ports:
-      - "8100:8100"
 
 volumes:
   pg_data:

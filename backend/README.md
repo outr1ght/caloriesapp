@@ -1,26 +1,56 @@
-﻿# Nutrition Assistant Backend
+# Nutrition Assistant Backend
 
-Production-oriented FastAPI backend for the nutrition assistant application.
+Production-oriented FastAPI backend.
 
 ## Stack
-
 - FastAPI
-- SQLAlchemy 2.x (async)
+- SQLAlchemy 2.x async
 - Alembic
 - PostgreSQL
 - Redis
 - Celery
-- JWT auth
-- OAuth-ready provider model (Google/Apple)
-- S3-compatible storage abstraction
-- OpenAI integration abstraction
+- JWT auth + refresh token rotation
+- OpenAI integration wrapper
+- S3-compatible upload abstraction
 
-## Local Run
+## Setup
+```bash
+python -m venv .venv
+. .venv/Scripts/activate
+pip install -e .
+copy .env.example .env
+```
 
-1. `pip install -e .`
-2. `uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload`
-3. Worker: `celery -A app.worker.celery_app.celery_app worker -l INFO`
+## Run API
+```bash
+alembic upgrade head
+uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+```
 
-## Test Run
+Health endpoint:
+- `GET /api/v1/health`
 
-- `pytest -q`
+## Run worker
+```bash
+celery -A app.worker.celery_app.celery_app worker -l INFO
+```
+
+## Tests
+```bash
+pytest -q
+```
+
+## Key env vars
+- `APP_SECRET_KEY`
+- `APP_DATABASE_URL`
+- `APP_REDIS_URL`
+- `APP_OPENAI_API_KEY`
+- `APP_OPENAI_MODEL`
+- `APP_S3_ENDPOINT_URL`
+- `APP_S3_BUCKET`
+- `APP_S3_ACCESS_KEY_ID`
+- `APP_S3_SECRET_ACCESS_KEY`
+
+## Notes
+- AI outputs are schema-validated where wrappers are used.
+- Meal nutrition totals are deterministic; AI is used for reasoning/explanation.
