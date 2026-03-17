@@ -21,26 +21,26 @@ class LoginRequest(BaseModel):
 
 class RefreshTokenRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    refresh_token: str = Field(min_length=32, max_length=4096)
+    refresh_token: str = Field(..., min_length=32, max_length=4096)
 
 
 class OAuthLoginRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
     provider: AuthProvider
-    code: str | None = None
-    id_token: str | None = None
-    redirect_uri: str | None = None
+    code: str | None = Field(default=None, min_length=1, max_length=4096)
+    id_token: str | None = Field(default=None, min_length=1, max_length=8192)
+    redirect_uri: str | None = Field(default=None, min_length=1, max_length=2048)
 
 
 class LogoutRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    refresh_token: str = Field(min_length=32, max_length=4096) | None = None
+    refresh_token: str | None = Field(default=None, min_length=32, max_length=4096)
 
 
 class TokenPairDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    access_token: str
-    refresh_token: str = Field(min_length=32, max_length=4096)
+    access_token: str = Field(..., min_length=1, max_length=8192)
+    refresh_token: str = Field(..., min_length=32, max_length=4096)
     token_type: str = "bearer"
     expires_in: int
 
@@ -61,4 +61,3 @@ class AuthSessionResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     user: AuthUserDTO
     tokens: TokenPairDTO
-

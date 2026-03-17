@@ -21,11 +21,20 @@ pip install -e .
 copy .env.example .env
 ```
 
-## Run API
+## Canonical startup path
+Run from `backend/` root.
+
+Preferred:
 ```bash
-alembic upgrade head
+python -m uvicorn app.main:app --reload
+```
+
+Alternative:
+```bash
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+
+Do not run `python app/main.py` from arbitrary working directories.
 
 Health endpoint:
 - `GET /api/v1/health`

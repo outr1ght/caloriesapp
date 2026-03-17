@@ -31,6 +31,8 @@ python -m venv .venv
 pip install -e .
 copy .env.example .env
 alembic upgrade head
+python -m uvicorn app.main:app --reload
+# or
 uvicorn app.main:app --reload --port 8000
 ```
 
@@ -70,4 +72,3 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:8000/api/v1
 - Validate auth refresh flow and protected endpoints from mobile.
 
 Launch notes: docs/release/launch_readiness.md
-

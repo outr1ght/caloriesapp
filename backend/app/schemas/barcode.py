@@ -1,3 +1,5 @@
+from typing import Any
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -9,5 +11,4 @@ class BarcodeLookupRequest(BaseModel):
 class BarcodeLookupResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
     found: bool
-    product: dict | None = None
-
+    product: dict[str, Any] | None = None
