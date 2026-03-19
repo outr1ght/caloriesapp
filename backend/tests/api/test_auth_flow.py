@@ -9,16 +9,17 @@ from app.db.models.enums import LanguageCode, UserRole
 from app.services.auth_service import AuthService
 
 
-def _mock_user() -> SimpleNamespace:
+def _mock_user(*, is_active: bool = True, deleted_at=None) -> SimpleNamespace:
     return SimpleNamespace(
         id="11111111-1111-1111-1111-111111111111",
         email="auth@example.com",
         role=UserRole.USER,
         locale=LanguageCode.EN,
         timezone="UTC",
-        is_active=True,
+        is_active=is_active,
         is_verified=False,
         created_at=datetime.now(UTC),
+        deleted_at=deleted_at,
     )
 
 
@@ -66,6 +67,7 @@ def test_register_login_refresh_logout_flow(client, monkeypatch):
     )
     assert register_response.status_code == 200
     assert register_response.json()["ok"] is True
+    assert set(register_response.json()) == {"ok", "message_key", "data", "error", "meta"}
 
     login_response = client.post("/api/v1/auth/login", json={"email": "auth@example.com", "password": "password123"})
     assert login_response.status_code == 200
@@ -94,4 +96,24 @@ def test_refresh_replay_rejected(client, monkeypatch):
 
     response = client.post("/api/v1/auth/refresh", json={"refresh_token": "already-used-refresh"})
     assert response.status_code == 401
-    assert response.json()["error"]["code"] == ErrorCode.AUTH_UNAUTHORIZED.value
+    body = response.json()
+    assert body["ok"] is False
+    assert body["error"]["code"] == ErrorCode.AUTH_UNAUTHORIZED.value
+    assert body["message_key"] == "errors.auth.refresh_revoked"
+
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_login_inactive_user_rejected(client, monkeypatch):
+    async def _login(self, payload):
+        _ = payload
+        raise AppException(
+            code=ErrorCode.AUTH_UNAUTHORIZED,
+            message_key="errors.auth.account_inactive",
+            status_code=401,
+        )
+
+    monkeypatch.setattr(AuthService, "login", _login)
+
+    response = client.post("/api/v1/auth/login", json={"email": "inactive@example.com", "password": "password123"})
+    assert response.status_code == 401
+    assert response.json()["message_key"] == "errors.auth.account_inactive"

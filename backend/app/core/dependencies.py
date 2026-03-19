@@ -18,11 +18,22 @@ async def db_session() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme), session: AsyncSession = Depends(db_session)) -> User:
+async def get_current_user(
+    credentials: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    session: AsyncSession = Depends(db_session),
+) -> User:
     if credentials is None:
         raise AppException(code=ErrorCode.AUTH_UNAUTHORIZED, message_key="errors.auth.missing_credentials", status_code=401)
 
-    payload = decode_token(credentials.credentials)
+    try:
+        payload = decode_token(credentials.credentials)
+    except ValueError as exc:
+        raise AppException(
+            code=ErrorCode.AUTH_INVALID_TOKEN,
+            message_key="errors.auth.invalid_token",
+            status_code=401,
+        ) from exc
+
     if payload.token_type != TokenType.ACCESS:
         raise AppException(code=ErrorCode.AUTH_INVALID_TOKEN, message_key="errors.auth.invalid_token_type", status_code=401)
 
@@ -31,4 +42,3 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials | None = De
     if user is None:
         raise AppException(code=ErrorCode.AUTH_UNAUTHORIZED, message_key="errors.auth.user_not_found", status_code=401)
     return user
-

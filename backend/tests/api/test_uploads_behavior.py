@@ -9,6 +9,35 @@ from app.services.upload_service import UploadService
 
 
 @pytest.mark.usefixtures("auth_overrides")
+def test_upload_init_validation_negative_paths(client, monkeypatch):
+    monkeypatch.setattr("app.services.upload_service.S3StorageService", lambda: None)
+
+    invalid_mime = client.post(
+        "/api/v1/uploads/init",
+        json={
+            "filename": "meal.jpg",
+            "mime_type": "text/plain",
+            "file_size": 1024,
+            "sha256": "a" * 64,
+        },
+    )
+    assert invalid_mime.status_code == 422
+    assert invalid_mime.json()["error"]["code"] == ErrorCode.VALIDATION_ERROR.value
+
+    too_large = client.post(
+        "/api/v1/uploads/init",
+        json={
+            "filename": "meal.jpg",
+            "mime_type": "image/jpeg",
+            "file_size": 999999999,
+            "sha256": "a" * 64,
+        },
+    )
+    assert too_large.status_code == 422
+    assert too_large.json()["message_key"].startswith("errors.upload")
+
+
+@pytest.mark.usefixtures("auth_overrides")
 def test_upload_complete_negative_paths(client, monkeypatch):
     async def _init_upload(self, user_id, payload):
         _ = (self, user_id, payload)

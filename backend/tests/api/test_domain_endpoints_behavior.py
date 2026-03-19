@@ -3,6 +3,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from app.common.exceptions import AppException, ErrorCode
 from app.db.models.domain_enums import MealPlanStatus, RecommendationStatus, RecommendationType
 from app.services.meal_plan_service import MealPlanService
 from app.services.recommendations_service import RecommendationsService
@@ -63,3 +64,35 @@ def test_recommendations_weights_meal_plans_basics(client, monkeypatch):
     plans_response = client.get("/api/v1/meal-plans")
     assert plans_response.status_code == 200
     assert len(plans_response.json()["data"]["items"]) == 1
+
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_recommendation_and_meal_plan_negative_paths(client, monkeypatch):
+    async def _missing_recommendation(self, user_id, recommendation_id, status):
+        _ = (self, user_id, recommendation_id, status)
+        raise AppException(code=ErrorCode.NOT_FOUND, message_key="errors.recommendations.not_found", status_code=404)
+
+    async def _missing_plan(self, user_id, plan_id, payload):
+        _ = (self, user_id, plan_id, payload)
+        raise AppException(code=ErrorCode.NOT_FOUND, message_key="errors.meal_plans.not_found", status_code=404)
+
+    monkeypatch.setattr(RecommendationsService, "set_status", _missing_recommendation)
+    monkeypatch.setattr(MealPlanService, "update", _missing_plan)
+
+    invalid_recommendation_id = client.patch("/api/v1/recommendations/not-a-uuid/status", json={"status": "applied"})
+    assert invalid_recommendation_id.status_code == 422
+
+    missing_recommendation = client.patch(
+        "/api/v1/recommendations/11111111-1111-1111-1111-111111111111/status",
+        json={"status": "applied"},
+    )
+    assert missing_recommendation.status_code == 404
+
+    invalid_plan_payload = client.post("/api/v1/meal-plans", json={})
+    assert invalid_plan_payload.status_code == 422
+
+    missing_plan = client.patch(
+        "/api/v1/meal-plans/33333333-3333-3333-3333-333333333333",
+        json={"title": "Updated"},
+    )
+    assert missing_plan.status_code == 404

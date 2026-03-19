@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
@@ -83,6 +82,7 @@ def test_meal_crud_and_ownership_checks(client, monkeypatch, sample_user):
         },
     )
     assert create_response.status_code == 200
+    assert set(create_response.json()) == {"ok", "message_key", "data", "error", "meta"}
 
     list_response = client.get("/api/v1/meals")
     assert list_response.status_code == 200
@@ -97,13 +97,49 @@ def test_meal_crud_and_ownership_checks(client, monkeypatch, sample_user):
     delete_response = client.delete(f"/api/v1/meals/{meal.id}")
     assert delete_response.status_code == 200
 
-    async def _get_denied(self, user_id, meal_id):
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_meal_not_found_and_ownership_errors(client, monkeypatch):
+    async def _not_found(self, user_id, meal_id):
         _ = (self, user_id, meal_id)
         raise AppException(code=ErrorCode.NOT_FOUND, message_key="errors.meals.not_found", status_code=404)
 
-    monkeypatch.setattr(MealService, "get_meal", _get_denied)
-    denied_response = client.get("/api/v1/meals/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
-    assert denied_response.status_code == 404
+    async def _delete_not_found(self, user_id, meal_id):
+        _ = (self, user_id, meal_id)
+        raise AppException(code=ErrorCode.NOT_FOUND, message_key="errors.meals.not_found", status_code=404)
+
+    monkeypatch.setattr(MealService, "get_meal", _not_found)
+    monkeypatch.setattr(MealService, "update_meal", _not_found)
+    monkeypatch.setattr(MealService, "delete_meal", _delete_not_found)
+
+    get_response = client.get("/api/v1/meals/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    assert get_response.status_code == 404
+    assert get_response.json()["error"]["code"] == ErrorCode.NOT_FOUND.value
+
+    update_response = client.patch("/api/v1/meals/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb", json={"title": "Updated"})
+    assert update_response.status_code == 404
+
+    delete_response = client.delete("/api/v1/meals/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")
+    assert delete_response.status_code == 404
+
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_meal_invalid_payload_rejected(client):
+    response = client.post(
+        "/api/v1/meals",
+        json={
+            "title": "Invalid meal",
+            "meal_type": "lunch",
+            "source": "manual",
+            "eaten_at": datetime.now(UTC).isoformat(),
+            "items": [],
+        },
+    )
+    assert response.status_code == 422
+    body = response.json()
+    assert body["ok"] is False
+    assert body["message_key"] == "errors.validation.invalid_request"
+    assert body["error"]["code"] == ErrorCode.VALIDATION_ERROR.value
 
 
 @pytest.mark.usefixtures("auth_overrides")

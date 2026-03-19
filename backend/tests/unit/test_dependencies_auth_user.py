@@ -1,10 +1,11 @@
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.security import HTTPAuthorizationCredentials
 
-from app.common.exceptions import AppException
-from app.core import dependencies
+from app.common.exceptions import AppException, ErrorCode
+from app.core.dependencies import get_current_user
 from app.core.security import TokenType
 
 
@@ -16,66 +17,62 @@ class _Result:
         return self._user
 
 
-class _Session:
-    def __init__(self, user):
-        self.user = user
+@pytest.mark.asyncio
+async def test_get_current_user_requires_credentials() -> None:
+    session = AsyncMock()
 
-    async def execute(self, stmt):
-        _ = stmt
-        return _Result(self.user)
+    with pytest.raises(AppException) as exc_info:
+        await get_current_user(credentials=None, session=session)
+
+    assert exc_info.value.code == ErrorCode.AUTH_UNAUTHORIZED
+    assert exc_info.value.status_code == 401
+    session.execute.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_get_current_user_rejects_missing_credentials():
-    with pytest.raises(AppException) as exc:
-        await dependencies.get_current_user(credentials=None, session=_Session(user=None))
-    assert exc.value.status_code == 401
+async def test_get_current_user_rejects_invalid_token(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.core.dependencies.decode_token", lambda _: (_ for _ in ()).throw(ValueError("Invalid token")))
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="invalid")
+    session = AsyncMock()
+
+    with pytest.raises(AppException) as exc_info:
+        await get_current_user(credentials=credentials, session=session)
+
+    assert exc_info.value.code == ErrorCode.AUTH_INVALID_TOKEN
+    assert exc_info.value.status_code == 401
+    session.execute.assert_not_awaited()
 
 
 @pytest.mark.asyncio
-async def test_get_current_user_rejects_invalid_token(monkeypatch):
-    def _decode(token):
-        _ = token
-        raise ValueError("invalid")
-
-    monkeypatch.setattr(dependencies, "decode_token", _decode)
-
-    with pytest.raises(AppException) as exc:
-        await dependencies.get_current_user(
-            credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials="bad"),
-            session=_Session(user=None),
-        )
-    assert exc.value.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_get_current_user_rejects_deleted_or_inactive_user(monkeypatch):
-    def _decode(token):
-        _ = token
-        return SimpleNamespace(sub="user-1", token_type=TokenType.ACCESS)
-
-    monkeypatch.setattr(dependencies, "decode_token", _decode)
-
-    with pytest.raises(AppException) as exc:
-        await dependencies.get_current_user(
-            credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials="ok"),
-            session=_Session(user=None),
-        )
-    assert exc.value.status_code == 401
-
-
-@pytest.mark.asyncio
-async def test_get_current_user_returns_active_user(monkeypatch):
-    user = SimpleNamespace(id="user-1", is_active=True, deleted_at=None)
-
-    def _decode(token):
-        _ = token
-        return SimpleNamespace(sub="user-1", token_type=TokenType.ACCESS)
-
-    monkeypatch.setattr(dependencies, "decode_token", _decode)
-
-    current = await dependencies.get_current_user(
-        credentials=HTTPAuthorizationCredentials(scheme="Bearer", credentials="ok"),
-        session=_Session(user=user),
+async def test_get_current_user_rejects_wrong_token_type(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.core.dependencies.decode_token",
+        lambda _: SimpleNamespace(sub="user-1", token_type=TokenType.REFRESH),
     )
-    assert current.id == "user-1"
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="refresh-token")
+    session = AsyncMock()
+
+    with pytest.raises(AppException) as exc_info:
+        await get_current_user(credentials=credentials, session=session)
+
+    assert exc_info.value.code == ErrorCode.AUTH_INVALID_TOKEN
+    assert exc_info.value.message_key == "errors.auth.invalid_token_type"
+    session.execute.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_rejects_filtered_user(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        "app.core.dependencies.decode_token",
+        lambda _: SimpleNamespace(sub="user-1", token_type=TokenType.ACCESS),
+    )
+    credentials = HTTPAuthorizationCredentials(scheme="Bearer", credentials="access-token")
+    session = AsyncMock()
+    session.execute.return_value = _Result(None)
+
+    with pytest.raises(AppException) as exc_info:
+        await get_current_user(credentials=credentials, session=session)
+
+    assert exc_info.value.code == ErrorCode.AUTH_UNAUTHORIZED
+    assert exc_info.value.message_key == "errors.auth.user_not_found"
+    session.execute.assert_awaited_once()

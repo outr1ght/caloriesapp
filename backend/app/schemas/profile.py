@@ -1,8 +1,10 @@
-﻿from datetime import datetime
+from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from app.db.models.enums import LanguageCode, UserRole
+
+EMAIL_PATTERN = r"^[^@\s]+@[^@\s]+\.[^@\s]+$"
 
 
 class UserProfileDTO(BaseModel):
@@ -30,7 +32,7 @@ class UserProfileUpdateRequest(BaseModel):
 class MeDTO(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
-    email: EmailStr
+    email: str = Field(min_length=3, max_length=320, pattern=EMAIL_PATTERN)
     role: UserRole
     locale: LanguageCode
     timezone: str

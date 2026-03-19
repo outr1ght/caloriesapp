@@ -20,11 +20,18 @@ def test_reports_empty_result_shape(client, monkeypatch):
 
     response = client.get("/api/v1/reports/nutrition?date_from=2026-03-01&date_to=2026-03-01")
     assert response.status_code == 200
-    assert response.json()["data"]["days"] == []
+    body = response.json()
+    assert body["ok"] is True
+    assert body["data"]["days"] == []
+    assert body["data"]["totals_calories"] == "0"
+    assert set(body) == {"ok", "message_key", "data", "error", "meta"}
 
 
 @pytest.mark.usefixtures("auth_overrides")
 def test_reports_invalid_date_range(client):
     response = client.get("/api/v1/reports/nutrition?date_from=2026-03-05&date_to=2026-03-01")
     assert response.status_code == 422
-    assert response.json()["error"]["code"] == "VALIDATION_ERROR"
+    body = response.json()
+    assert body["ok"] is False
+    assert body["error"]["code"] == "VALIDATION_ERROR"
+    assert body["message_key"] == "errors.reports.invalid_date_range"

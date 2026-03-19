@@ -1,3 +1,37 @@
-﻿from app.db.models.user import AuthIdentity, User, UserProfile
+from app.db.models.all_models import (
+    AuditLog,
+    AuthIdentity,
+    Barcode,
+    FoodProduct,
+    Ingredient,
+    Meal,
+    MealItem,
+    MealPlan,
+    NutritionGoal,
+    NutritionValue,
+    Recommendation,
+    UploadedImage,
+    User,
+    UserProfile,
+    UserSettings,
+    WeightLog,
+)
 
-__all__ = ["User", "AuthIdentity", "UserProfile"]
+__all__ = [
+    "User",
+    "AuthIdentity",
+    "UserProfile",
+    "NutritionValue",
+    "Ingredient",
+    "FoodProduct",
+    "Barcode",
+    "Meal",
+    "MealItem",
+    "UploadedImage",
+    "Recommendation",
+    "WeightLog",
+    "NutritionGoal",
+    "MealPlan",
+    "UserSettings",
+    "AuditLog",
+]

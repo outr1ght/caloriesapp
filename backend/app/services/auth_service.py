@@ -21,6 +21,16 @@ class AuthService:
     def _refresh_ttl_days(self) -> int:
         return self.settings.refresh_token_expire_days
 
+    @staticmethod
+    def _ensure_active_user(user: object | None) -> object:
+        if user is None or getattr(user, "deleted_at", None) is not None or not bool(getattr(user, "is_active", False)):
+            raise AppException(
+                code=ErrorCode.AUTH_UNAUTHORIZED,
+                message_key="errors.auth.account_inactive",
+                status_code=401,
+            )
+        return user
+
     async def _allow_refresh(self, jti: str) -> None:
         try:
             await self.token_store.allow_refresh_jti(jti, ttl_days=self._refresh_ttl_days())
@@ -81,6 +91,7 @@ class AuthService:
         if user is None or not user.hashed_password or not verify_password(payload.password.get_secret_value(), user.hashed_password):
             raise AppException(code=ErrorCode.AUTH_UNAUTHORIZED, message_key="errors.auth.invalid_credentials", status_code=401)
 
+        user = self._ensure_active_user(user)
         user.last_login_at = datetime.now(UTC)
         tokens = create_token_pair(user.id)
         refresh_payload = decode_token(tokens.refresh_token)
@@ -99,6 +110,9 @@ class AuthService:
 
         if not await self._is_refresh_allowed(payload.jti):
             raise AppException(code=ErrorCode.AUTH_UNAUTHORIZED, message_key="errors.auth.refresh_revoked", status_code=401)
+
+        user = await self.users.get_by_id(payload.sub)
+        self._ensure_active_user(user)
 
         await self._revoke_refresh(payload.jti)
         new_pair = create_token_pair(payload.sub)
@@ -125,7 +139,7 @@ class AuthService:
 
         identity = await self.users.get_identity(payload.provider, provider_user_id)
         if identity is not None:
-            user = identity.user
+            user = self._ensure_active_user(identity.user)
         else:
             synthetic_email = f"{payload.provider.value}_{provider_user_id[:16]}@oauth.local"
             user = await self.users.create_user(email=synthetic_email, hashed_password=None, locale="en", timezone="UTC")
