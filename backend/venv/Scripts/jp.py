@@ -1,4 +1,4 @@
-#!C:\projects\caloriesapp\backend\venv\Scripts\python.exe
+#!C:\Projects\caloriesapp\backend\venv\Scripts\python.exe
 
 import sys
 import json

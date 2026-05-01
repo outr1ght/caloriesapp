@@ -4,6 +4,7 @@ import '../../data/repositories/barcode_repository_impl.dart';
 import '../../domain/entities/barcode_lookup_entity.dart';
 import '../usecases/lookup_barcode_usecase.dart';
 import '../usecases/save_barcode_meal_usecase.dart';
+import 'meals_provider.dart';
 
 final barcodeProvider = AsyncNotifierProvider<BarcodeController, BarcodeLookupEntity?>(BarcodeController.new);
 
@@ -41,6 +42,8 @@ class BarcodeController extends AsyncNotifier<BarcodeLookupEntity?> {
     }
 
     final usecase = SaveBarcodeMealUseCase(ref.read(barcodeRepositoryProvider));
-    return usecase(product);
+    final mealId = await usecase(product);
+    ref.invalidate(mealsProvider);
+    return mealId;
   }
 }

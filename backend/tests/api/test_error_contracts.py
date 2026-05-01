@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+﻿from datetime import UTC, datetime
 
 import pytest
 
@@ -20,6 +20,7 @@ def test_validation_errors_use_normalized_contract(client):
         },
     )
     assert response.status_code == 422
+    assert response.headers["x-request-id"]
     body = response.json()
     assert body == {
         "ok": False,
@@ -40,8 +41,12 @@ def test_app_exceptions_use_normalized_contract(client, monkeypatch):
 
     monkeypatch.setattr(MealService, "get_meal", _not_found)
 
-    response = client.get("/api/v1/meals/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
+    response = client.get(
+        "/api/v1/meals/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+        headers={"X-Request-ID": "req-error-404"},
+    )
     assert response.status_code == 404
+    assert response.headers["x-request-id"] == "req-error-404"
     assert response.json() == {
         "ok": False,
         "message_key": "errors.meals.not_found",

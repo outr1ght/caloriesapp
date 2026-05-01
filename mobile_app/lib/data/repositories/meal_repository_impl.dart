@@ -33,4 +33,16 @@ class MealRepositoryImpl implements MealRepository {
     final items = (data['items'] as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>();
     return items.map((x) => MealModel.fromJson(x).toEntity()).toList();
   }
+
+  @override
+  Future<MealEntity> updateTitle(String id, String title) async {
+    final root = await _datasource.update(id, {'title': title});
+    final data = (root['data'] as Map<String, dynamic>?) ?? root;
+    return MealModel.fromJson(data).toEntity();
+  }
+
+  @override
+  Future<void> delete(String id) {
+    return _datasource.delete(id);
+  }
 }

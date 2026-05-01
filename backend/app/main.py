@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -17,27 +17,39 @@ if __package__ in {None, ""}:
         sys.path.insert(0, backend_root_str)
 
 from app.api.router_complete import api_router_complete
-from app.common.exceptions import AppException, app_exception_handler, generic_exception_handler, validation_exception_handler
+from app.common.exceptions import AppException
 from app.core.config import get_settings
-from app.core.logging import configure_logging
+from app.core.errors import app_exception_handler, generic_exception_handler, validation_exception_handler
+from app.core.logging import configure_logging, get_logger
+from app.core.middleware import RequestLoggingMiddleware
 from app.core.redis import close_redis, get_redis
 
 settings = get_settings()
 configure_logging()
+logger = get_logger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     redis_client = get_redis()
+    logger.info("application startup", extra={"event": {"component": "app", "phase": "startup"}})
     try:
         await redis_client.ping()
-    except Exception:
-        pass
-    yield
-    await close_redis()
+        logger.info("redis ping succeeded", extra={"event": {"component": "redis", "phase": "startup"}})
+    except Exception as exc:
+        logger.warning(
+            "redis ping failed",
+            extra={"event": {"component": "redis", "phase": "startup", "degraded": True, "error_type": type(exc).__name__}},
+        )
+    try:
+        yield
+    finally:
+        await close_redis()
+        logger.info("application shutdown", extra={"event": {"component": "app", "phase": "shutdown"}})
 
 
 app = FastAPI(title=settings.project_name, debug=settings.debug, version="0.1.0", lifespan=lifespan)
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins,

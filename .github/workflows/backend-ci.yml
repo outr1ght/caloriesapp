@@ -1,0 +1,86 @@
+﻿name: backend-ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: nutrition_app
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d nutrition_app"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+
+    defaults:
+      run:
+        working-directory: backend
+
+    env:
+      APP_ENV: test
+      APP_DEBUG: "false"
+      APP_PROJECT_NAME: Nutrition Assistant API
+      APP_API_V1_PREFIX: /api/v1
+      APP_SECRET_KEY: test-secret-key-test-secret-key-123456
+      APP_JWT_ALGORITHM: HS256
+      APP_ACCESS_TOKEN_EXPIRE_MINUTES: "15"
+      APP_REFRESH_TOKEN_EXPIRE_DAYS: "30"
+      APP_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/nutrition_app
+      APP_DATABASE_ECHO: "false"
+      APP_REDIS_URL: redis://localhost:6379/0
+      APP_CORS_ORIGINS: http://localhost:3000,http://localhost:5173
+      APP_OPENAI_API_KEY: ""
+      APP_OPENAI_MODEL: gpt-4.1-mini
+      APP_OPENAI_TIMEOUT_SECONDS: "20"
+      APP_OPENAI_MAX_RETRIES: "2"
+      APP_S3_ENDPOINT_URL: http://localhost:9000
+      APP_S3_REGION: us-east-1
+      APP_S3_BUCKET: nutrition-assets
+      APP_S3_ACCESS_KEY_ID: minioadmin
+      APP_S3_SECRET_ACCESS_KEY: minioadmin
+      APP_S3_USE_SSL: "false"
+      APP_MAX_UPLOAD_BYTES: "5242880"
+      APP_ALLOWED_UPLOAD_MIME: image/jpeg,image/png,image/webp
+      APP_RATE_LIMIT_PER_MINUTE: "120"
+      APP_MAX_REPORT_RANGE_DAYS: "93"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Alembic migrations
+        run: alembic upgrade head
+
+      - name: Run backend tests
+        run: python -m pytest

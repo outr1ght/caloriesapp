@@ -2,7 +2,8 @@
 from enum import StrEnum
 from uuid import uuid4
 
-from jose import JWTError, jwt
+import jwt
+from jwt import InvalidTokenError
 from passlib.context import CryptContext
 from pydantic import BaseModel, Field, ValidationError
 
@@ -43,7 +44,13 @@ def hash_password(password: str) -> str:
 def _create_token(subject: str, token_type: TokenType, expires_delta: timedelta) -> str:
     now = datetime.now(UTC)
     expire = now + expires_delta
-    payload = {"sub": subject, "token_type": token_type.value, "iat": int(now.timestamp()), "exp": int(expire.timestamp()), "jti": str(uuid4())}
+    payload = {
+        "sub": subject,
+        "token_type": token_type.value,
+        "iat": int(now.timestamp()),
+        "exp": int(expire.timestamp()),
+        "jti": str(uuid4()),
+    }
     return jwt.encode(payload, settings.secret_key, algorithm=settings.jwt_algorithm)
 
 
@@ -59,7 +66,7 @@ def decode_token(token: str) -> TokenPayload:
     try:
         raw_payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
         return TokenPayload.model_validate(raw_payload)
-    except (JWTError, ValidationError) as exc:
+    except (InvalidTokenError, ValidationError) as exc:
         raise ValueError("Invalid token") from exc
 
 

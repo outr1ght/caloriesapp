@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import '../../application/providers/auth_provider.dart';
 import '../../application/providers/goals_provider.dart';
 import '../../application/providers/profile_provider.dart';
+import '../../core/error/app_error.dart';
 import '../features/auth/login_screen.dart';
 import '../features/auth/signup_screen.dart';
 import '../features/auth/splash_screen.dart';
@@ -35,11 +36,21 @@ bool _hasGoal(dynamic goal) {
   return goal.targetCalories > 0;
 }
 
+bool _hasUnauthorizedError(AsyncValue<dynamic> value) {
+  final error = value.error;
+  if (error is AppError) {
+    return error.statusCode == 401 || (error.code?.startsWith('AUTH_') ?? false);
+  }
+  return false;
+}
+
 final goRouterProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authStateProvider);
-  final isAuthenticated = auth.valueOrNull != null;
-  final profile = isAuthenticated ? ref.watch(profileProvider) : const AsyncData(null);
-  final goals = isAuthenticated ? ref.watch(goalsProvider) : const AsyncData(null);
+  final hasSession = auth.valueOrNull != null;
+  final profile = hasSession ? ref.watch(profileProvider) : const AsyncData(null);
+  final goals = hasSession ? ref.watch(goalsProvider) : const AsyncData(null);
+  final hasUnauthorizedDependency = _hasUnauthorizedError(profile) || _hasUnauthorizedError(goals);
+  final isAuthenticated = hasSession && !hasUnauthorizedDependency;
 
   return GoRouter(
     initialLocation: '/splash',

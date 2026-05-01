@@ -34,6 +34,11 @@ class AuthApiDatasource {
     return login(email, password);
   }
 
+  Future<Map<String, dynamic>> getCurrentUser() async {
+    final response = await _apiClient.get<Map<String, dynamic>>('/me');
+    return response.data ?? <String, dynamic>{};
+  }
+
   Future<void> logout(String? refreshToken) async {
     if (refreshToken == null || refreshToken.isEmpty) return;
     await _apiClient.post<Map<String, dynamic>>('/auth/logout', data: {'refresh_token': refreshToken});

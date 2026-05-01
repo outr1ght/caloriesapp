@@ -4,6 +4,7 @@ import '../../data/repositories/meal_analysis_repository_impl.dart';
 import '../../domain/entities/meal_analysis_entity.dart';
 import '../usecases/analyze_meal_usecase.dart';
 import '../usecases/save_meal_from_analysis_usecase.dart';
+import 'meals_provider.dart';
 
 final mealAnalysisProvider = AsyncNotifierProvider<MealAnalysisController, MealAnalysisEntity?>(
   MealAnalysisController.new,
@@ -53,6 +54,7 @@ class MealAnalysisController extends AsyncNotifier<MealAnalysisEntity?> {
 
     final usecase = SaveMealFromAnalysisUseCase(ref.read(mealAnalysisRepositoryProvider));
     final mealId = await usecase(sanitized);
+    ref.invalidate(mealsProvider);
     return mealId;
   }
 }

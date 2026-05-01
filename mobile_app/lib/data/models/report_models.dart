@@ -27,7 +27,7 @@ class NutritionReportModel {
         .map(
           (d) => ReportPointEntity(
             label: (d['date'] as String?) ?? '',
-            calories: ((d['calories'] as num?) ?? 0).toDouble(),
+            calories: _asDouble(d['calories']),
           ),
         )
         .toList();
@@ -37,14 +37,14 @@ class NutritionReportModel {
     double fat = 0;
     for (final d in days) {
       final macros = (d['macros'] as Map<String, dynamic>?) ?? const {};
-      protein += ((macros['protein_g'] as num?) ?? 0).toDouble();
-      carbs += ((macros['carbs_g'] as num?) ?? 0).toDouble();
-      fat += ((macros['fat_g'] as num?) ?? 0).toDouble();
+      protein += _asDouble(macros['protein_g']);
+      carbs += _asDouble(macros['carbs_g']);
+      fat += _asDouble(macros['fat_g']);
     }
 
     return NutritionReportModel(
-      totalCalories: ((data['totals_calories'] as num?) ?? 0).toDouble(),
-      averageCalories: ((data['avg_daily_calories'] as num?) ?? 0).toDouble(),
+      totalCalories: _asDouble(data['totals_calories']),
+      averageCalories: _asDouble(data['avg_daily_calories']),
       protein: protein,
       carbs: carbs,
       fat: fat,
@@ -61,5 +61,11 @@ class NutritionReportModel {
       fat: fat,
       trend: trend,
     );
+  }
+
+  static double _asDouble(Object? value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
   }
 }

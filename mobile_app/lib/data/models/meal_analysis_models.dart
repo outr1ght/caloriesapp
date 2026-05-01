@@ -34,9 +34,9 @@ class MealAnalysisModel {
         .map(
           (x) => MealAnalysisItemEntity(
             name: (x['name'] as String?) ?? '',
-            quantity: ((x['estimated_quantity'] as num?) ?? 0).toDouble(),
+            quantity: _asDouble(x['estimated_quantity']),
             unit: (x['unit'] as String?) ?? 'g',
-            confidence: ((x['confidence'] as num?) ?? 0).toDouble(),
+            confidence: _asDouble(x['confidence']),
           ),
         )
         .toList();
@@ -45,11 +45,11 @@ class MealAnalysisModel {
       mealId: (data['meal_id'] as String?) ?? '',
       status: (data['status'] as String?) ?? 'ready',
       items: items,
-      calories: ((nutrition['calories'] as num?) ?? 0).toDouble(),
-      protein: ((nutrition['protein_g'] as num?) ?? 0).toDouble(),
-      carbs: ((nutrition['carbs_g'] as num?) ?? 0).toDouble(),
-      fat: ((nutrition['fat_g'] as num?) ?? 0).toDouble(),
-      confidence: ((nutrition['confidence'] as num?) ?? 0).toDouble(),
+      calories: _asDouble(nutrition['calories']),
+      protein: _asDouble(nutrition['protein_g']),
+      carbs: _asDouble(nutrition['carbs_g']),
+      fat: _asDouble(nutrition['fat_g']),
+      confidence: _asDouble(nutrition['confidence']),
       explanation: (data['explanation'] as String?) ?? '',
       warnings: (data['warnings'] as List<dynamic>? ?? const []).map((e) => e.toString()).toList(),
     );
@@ -68,5 +68,11 @@ class MealAnalysisModel {
       explanation: explanation,
       warnings: warnings,
     );
+  }
+
+  static double _asDouble(Object? value) {
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0;
+    return 0;
   }
 }

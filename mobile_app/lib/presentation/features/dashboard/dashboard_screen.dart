@@ -3,6 +3,8 @@ import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../application/providers/dashboard_provider.dart';
+import '../../../application/providers/goals_provider.dart';
 import '../../../application/providers/meals_provider.dart';
 import '../../widgets/app_card.dart';
 
@@ -13,12 +15,19 @@ class DashboardScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context)!;
     final mealsState = ref.watch(mealsProvider);
-    final totalCalories = mealsState.valueOrNull?.fold<double>(0, (sum, m) => sum + m.calories) ?? 0;
+    final goalsState = ref.watch(goalsProvider);
+    final reportState = ref.watch(dashboardReportProvider);
+    final calorieGoal = goalsState.valueOrNull?.targetCalories.toDouble() ?? 2200;
+    final totalCalories = reportState.valueOrNull?.totalCalories ?? 0;
 
     return Scaffold(
       appBar: AppBar(title: Text(l10n.dashboardTitle)),
       body: RefreshIndicator(
-        onRefresh: () => ref.read(mealsProvider.notifier).refresh(),
+        onRefresh: () async {
+          await ref.read(mealsProvider.notifier).refresh();
+          ref.invalidate(goalsProvider);
+          ref.invalidate(dashboardReportProvider);
+        },
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -28,14 +37,25 @@ class DashboardScreen extends ConsumerWidget {
                 children: [
                   Text(l10n.dailyCaloriesProgressTitle),
                   const SizedBox(height: 8),
-                  LinearProgressIndicator(value: (totalCalories / 2200).clamp(0, 1)),
+                  LinearProgressIndicator(value: calorieGoal <= 0 ? 0 : (totalCalories / calorieGoal).clamp(0, 1)),
                   const SizedBox(height: 8),
-                  Text('${totalCalories.toStringAsFixed(0)} / 2200 kcal'),
+                  Text('${totalCalories.toStringAsFixed(0)} / ${calorieGoal.toStringAsFixed(0)} kcal'),
                 ],
               ),
             ),
             const SizedBox(height: 12),
-            AppCard(child: ListTile(title: Text(l10n.macroSummaryTitle), subtitle: Text(l10n.macroSummarySample))),
+            AppCard(
+              child: ListTile(
+                title: Text(l10n.macroSummaryTitle),
+                subtitle: reportState.when(
+                  data: (report) => Text(
+                    'P ${report.protein.toStringAsFixed(0)}g | C ${report.carbs.toStringAsFixed(0)}g | F ${report.fat.toStringAsFixed(0)}g',
+                  ),
+                  loading: () => Text(l10n.macroSummarySample),
+                  error: (_, __) => Text(l10n.genericLoadFailedLabel),
+                ),
+              ),
+            ),
             const SizedBox(height: 12),
             AppCard(
               child: Column(
@@ -54,7 +74,7 @@ class DashboardScreen extends ConsumerWidget {
                   if (mealsState.isLoading) const CircularProgressIndicator(),
                   if (mealsState.hasValue && mealsState.value!.isEmpty) Text(l10n.genericEmptyLabel),
                   if (mealsState.hasValue)
-                    ...mealsState.value!.take(3).map((meal) => Text('${meal.title} - ${meal.calories.toStringAsFixed(0)} kcal')),
+                    ...mealsState.value!.take(3).map((meal) => Text('${meal.title} - ${meal.mealType}')),
                 ],
               ),
             ),

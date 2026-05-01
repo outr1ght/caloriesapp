@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+﻿from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -7,6 +7,11 @@ from app.common.exceptions import AppException, ErrorCode
 from app.core.security import TokenPair
 from app.db.models.enums import LanguageCode, UserRole
 from app.services.auth_service import AuthService
+
+VALID_REFRESH_1 = "r" * 32
+VALID_REFRESH_2 = "s" * 32
+VALID_REFRESH_3 = "t" * 32
+REPLAYED_REFRESH = "u" * 32
 
 
 def _mock_user(*, is_active: bool = True, deleted_at=None) -> SimpleNamespace:
@@ -29,7 +34,7 @@ def test_register_login_refresh_logout_flow(client, monkeypatch):
         _ = payload
         return _mock_user(), TokenPair(
             access_token="access-1",
-            refresh_token="refresh-1",
+            refresh_token=VALID_REFRESH_1,
             token_type="bearer",
             expires_in=900,
         )
@@ -38,7 +43,7 @@ def test_register_login_refresh_logout_flow(client, monkeypatch):
         _ = payload
         return _mock_user(), TokenPair(
             access_token="access-2",
-            refresh_token="refresh-2",
+            refresh_token=VALID_REFRESH_2,
             token_type="bearer",
             expires_in=900,
         )
@@ -47,7 +52,7 @@ def test_register_login_refresh_logout_flow(client, monkeypatch):
         _ = refresh_token
         return TokenPair(
             access_token="access-3",
-            refresh_token="refresh-3",
+            refresh_token=VALID_REFRESH_3,
             token_type="bearer",
             expires_in=900,
         )
@@ -71,13 +76,13 @@ def test_register_login_refresh_logout_flow(client, monkeypatch):
 
     login_response = client.post("/api/v1/auth/login", json={"email": "auth@example.com", "password": "password123"})
     assert login_response.status_code == 200
-    assert login_response.json()["data"]["tokens"]["refresh_token"] == "refresh-2"
+    assert login_response.json()["data"]["tokens"]["refresh_token"] == VALID_REFRESH_2
 
-    refresh_response = client.post("/api/v1/auth/refresh", json={"refresh_token": "refresh-2"})
+    refresh_response = client.post("/api/v1/auth/refresh", json={"refresh_token": VALID_REFRESH_2})
     assert refresh_response.status_code == 200
     assert refresh_response.json()["data"]["access_token"] == "access-3"
 
-    logout_response = client.post("/api/v1/auth/logout", json={"refresh_token": "refresh-3"})
+    logout_response = client.post("/api/v1/auth/logout", json={"refresh_token": VALID_REFRESH_3})
     assert logout_response.status_code == 200
     assert logout_response.json()["data"]["logged_out"] is True
 
@@ -94,7 +99,7 @@ def test_refresh_replay_rejected(client, monkeypatch):
 
     monkeypatch.setattr(AuthService, "refresh", _refresh)
 
-    response = client.post("/api/v1/auth/refresh", json={"refresh_token": "already-used-refresh"})
+    response = client.post("/api/v1/auth/refresh", json={"refresh_token": REPLAYED_REFRESH})
     assert response.status_code == 401
     body = response.json()
     assert body["ok"] is False

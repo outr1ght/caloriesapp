@@ -4,6 +4,7 @@ import logging.config
 from typing import Any
 
 SENSITIVE_KEYS = {"password", "hashed_password", "token", "access_token", "refresh_token", "authorization", "secret", "api_key"}
+_DEFAULT_LOG_RECORD_KEYS = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__.keys())
 
 
 class RedactingJsonFormatter(logging.Formatter):
@@ -17,6 +18,24 @@ class RedactingJsonFormatter(logging.Formatter):
             "lineNo": record.lineno,
             "time": self.formatTime(record, self.datefmt),
         }
+
+        event = getattr(record, "event", None)
+        if isinstance(event, dict):
+            payload.update(event)
+
+        extras = {
+            key: value
+            for key, value in record.__dict__.items()
+            if key not in _DEFAULT_LOG_RECORD_KEYS and key not in {"message", "asctime", "event"} and not key.startswith("_")
+        }
+        if extras:
+            payload["extra"] = extras
+
+        if record.exc_info:
+            payload["exception"] = self.formatException(record.exc_info)
+        if record.stack_info:
+            payload["stack"] = self.formatStack(record.stack_info)
+
         return json.dumps(self._redact_mapping(payload), ensure_ascii=True)
 
     def _redact_mapping(self, value: Any) -> Any:
@@ -35,3 +54,7 @@ def configure_logging() -> None:
         "handlers": {"default": {"class": "logging.StreamHandler", "formatter": "json", "level": "INFO"}},
         "root": {"handlers": ["default"], "level": "INFO"},
     })
+
+
+def get_logger(name: str) -> logging.Logger:
+    return logging.getLogger(name)

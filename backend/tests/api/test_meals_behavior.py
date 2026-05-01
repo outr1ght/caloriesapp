@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+﻿from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -104,12 +104,16 @@ def test_meal_not_found_and_ownership_errors(client, monkeypatch):
         _ = (self, user_id, meal_id)
         raise AppException(code=ErrorCode.NOT_FOUND, message_key="errors.meals.not_found", status_code=404)
 
+    async def _update_not_found(self, user_id, meal_id, payload):
+        _ = (self, user_id, meal_id, payload)
+        raise AppException(code=ErrorCode.NOT_FOUND, message_key="errors.meals.not_found", status_code=404)
+
     async def _delete_not_found(self, user_id, meal_id):
         _ = (self, user_id, meal_id)
         raise AppException(code=ErrorCode.NOT_FOUND, message_key="errors.meals.not_found", status_code=404)
 
     monkeypatch.setattr(MealService, "get_meal", _not_found)
-    monkeypatch.setattr(MealService, "update_meal", _not_found)
+    monkeypatch.setattr(MealService, "update_meal", _update_not_found)
     monkeypatch.setattr(MealService, "delete_meal", _delete_not_found)
 
     get_response = client.get("/api/v1/meals/bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")

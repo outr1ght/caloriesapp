@@ -45,8 +45,19 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<UserSession?> restoreSession() async {
     final session = await tokenStorage.read();
+    if (session == null) {
+      await apiClient.applySession(null);
+      return null;
+    }
+
     await apiClient.applySession(session);
-    return session;
+    try {
+      await datasource.getCurrentUser();
+      return session;
+    } catch (_) {
+      await apiClient.applySession(null);
+      return null;
+    }
   }
 
   @override

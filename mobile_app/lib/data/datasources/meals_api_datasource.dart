@@ -17,4 +17,13 @@ class MealsApiDatasource {
     final response = await _client.get<Map<String, dynamic>>('/meals/$id');
     return response.data ?? <String, dynamic>{};
   }
+
+  Future<Map<String, dynamic>> update(String id, Map<String, dynamic> payload) async {
+    final response = await _client.patch<Map<String, dynamic>>('/meals/$id', data: payload);
+    return response.data ?? <String, dynamic>{};
+  }
+
+  Future<void> delete(String id) async {
+    await _client.delete<Map<String, dynamic>>('/meals/$id');
+  }
 }
