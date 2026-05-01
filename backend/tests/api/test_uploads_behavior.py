@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+﻿from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -72,6 +72,33 @@ def test_upload_complete_negative_paths(client, monkeypatch):
 
     not_found = client.post("/api/v1/uploads/complete", json={"upload_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"})
     assert not_found.status_code == 404
+
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_upload_complete_missing_object(client, monkeypatch):
+    async def _complete_missing_object(self, user_id, upload_id):
+        _ = (self, user_id, upload_id)
+        raise AppException(code=ErrorCode.VALIDATION_ERROR, message_key="errors.upload.object_not_found", status_code=409)
+
+    monkeypatch.setattr(UploadService, "complete_upload", _complete_missing_object)
+    response = client.post("/api/v1/uploads/complete", json={"upload_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"})
+    assert response.status_code == 409
+    assert response.json()["message_key"] == "errors.upload.object_not_found"
+
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_upload_complete_storage_failure_maps_to_existing_envelope(client, monkeypatch):
+    async def _complete_storage_error(self, user_id, upload_id):
+        _ = (self, user_id, upload_id)
+        raise AppException(code=ErrorCode.INTERNAL_ERROR, message_key="errors.upload.storage_unavailable", status_code=503)
+
+    monkeypatch.setattr(UploadService, "complete_upload", _complete_storage_error)
+    response = client.post("/api/v1/uploads/complete", json={"upload_id": "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"})
+    assert response.status_code == 503
+    body = response.json()
+    assert body["ok"] is False
+    assert body["message_key"] == "errors.upload.storage_unavailable"
+    assert body["error"]["code"] == ErrorCode.INTERNAL_ERROR.value
 
 
 @pytest.mark.usefixtures("auth_overrides")

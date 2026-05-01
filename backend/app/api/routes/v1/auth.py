@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, Request
+﻿from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.common.responses import success_response
@@ -26,7 +26,7 @@ def _client_key(request: Request, scope: str) -> str:
 
 @router.post("/register")
 async def register(payload: RegisterRequest, request: Request, session: AsyncSession = Depends(get_session)) -> dict:
-    await enforce_user_rate_limit(request, _client_key(request, "auth_register"))
+    await enforce_user_rate_limit(request, _client_key(request, "auth_register"), category="auth")
     service = AuthService(session)
     user, tokens = await service.register(payload)
     return success_response(
@@ -39,7 +39,7 @@ async def register(payload: RegisterRequest, request: Request, session: AsyncSes
 
 @router.post("/login")
 async def login(payload: LoginRequest, request: Request, session: AsyncSession = Depends(get_session)) -> dict:
-    await enforce_user_rate_limit(request, _client_key(request, "auth_login"))
+    await enforce_user_rate_limit(request, _client_key(request, "auth_login"), category="auth")
     service = AuthService(session)
     user, tokens = await service.login(payload)
     return success_response(
@@ -52,7 +52,7 @@ async def login(payload: LoginRequest, request: Request, session: AsyncSession =
 
 @router.post("/refresh")
 async def refresh(payload: RefreshTokenRequest, request: Request, session: AsyncSession = Depends(get_session)) -> dict:
-    await enforce_user_rate_limit(request, _client_key(request, "auth_refresh"))
+    await enforce_user_rate_limit(request, _client_key(request, "auth_refresh"), category="auth")
     service = AuthService(session)
     tokens = await service.refresh(payload.refresh_token)
     return success_response(data=TokenPairDTO(**tokens.model_dump()).model_dump())
@@ -60,7 +60,7 @@ async def refresh(payload: RefreshTokenRequest, request: Request, session: Async
 
 @router.post("/logout")
 async def logout(payload: LogoutRequest, request: Request, session: AsyncSession = Depends(get_session)) -> dict:
-    await enforce_user_rate_limit(request, _client_key(request, "auth_logout"))
+    await enforce_user_rate_limit(request, _client_key(request, "auth_logout"), category="auth")
     service = AuthService(session)
     await service.logout(payload.refresh_token)
     return success_response(data={"logged_out": True})
@@ -68,7 +68,7 @@ async def logout(payload: LogoutRequest, request: Request, session: AsyncSession
 
 @router.post("/oauth")
 async def oauth_login(payload: OAuthLoginRequest, request: Request, session: AsyncSession = Depends(get_session)) -> dict:
-    await enforce_user_rate_limit(request, _client_key(request, "auth_oauth"))
+    await enforce_user_rate_limit(request, _client_key(request, "auth_oauth"), category="auth")
     service = AuthService(session)
     user, tokens = await service.oauth_login(payload)
     return success_response(

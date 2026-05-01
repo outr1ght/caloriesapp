@@ -122,3 +122,24 @@ def test_login_inactive_user_rejected(client, monkeypatch):
     response = client.post("/api/v1/auth/login", json={"email": "inactive@example.com", "password": "password123"})
     assert response.status_code == 401
     assert response.json()["message_key"] == "errors.auth.account_inactive"
+
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_login_rate_limited_envelope_unchanged(client, monkeypatch):
+    async def _rate_limit(*args, **kwargs):
+        _ = (args, kwargs)
+        raise AppException(
+            code=ErrorCode.RATE_LIMITED,
+            message_key="errors.common.rate_limited",
+            status_code=429,
+        )
+
+    monkeypatch.setattr("app.api.routes.v1.auth.enforce_user_rate_limit", _rate_limit)
+
+    response = client.post("/api/v1/auth/login", json={"email": "auth@example.com", "password": "password123"})
+
+    assert response.status_code == 429
+    body = response.json()
+    assert body["ok"] is False
+    assert body["message_key"] == "errors.common.rate_limited"
+    assert body["error"]["code"] == ErrorCode.RATE_LIMITED.value

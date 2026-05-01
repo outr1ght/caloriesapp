@@ -1,4 +1,4 @@
-from uuid import UUID
+﻿from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,7 +31,7 @@ async def create_meal(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    await enforce_user_rate_limit(request, f"user:{current_user.id}")
+    await enforce_user_rate_limit(request, f"user:{current_user.id}", user_id=current_user.id)
     service = MealService(session)
     meal = await service.create_meal(current_user.id, payload)
     return success_response(data=MealDTO.model_validate(meal, from_attributes=True).model_dump())
@@ -99,7 +99,7 @@ async def analyze_meal(
     request: Request,
     current_user: User = Depends(get_current_user),
 ) -> dict:
-    await enforce_user_rate_limit(request, f"user:{current_user.id}")
+    await enforce_user_rate_limit(request, f"user:{current_user.id}", category="meal_analysis", user_id=current_user.id)
     if payload.meal_id:
         _require_uuid(payload.meal_id)
     service = MealAnalysisService()

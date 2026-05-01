@@ -1,4 +1,4 @@
-from functools import lru_cache
+﻿from functools import lru_cache
 from typing import Any
 
 from pydantic import Field, field_validator
@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     allowed_upload_mime: list[str] = Field(default_factory=lambda: ["image/jpeg", "image/png", "image/webp"])
 
     rate_limit_per_minute: int = 120
+    rate_limit_auth_per_minute: int | None = None
+    rate_limit_meal_analysis_per_minute: int | None = None
+    rate_limit_uploads_per_minute: int | None = None
     max_report_range_days: int = 93
 
     @field_validator("cors_origins", mode="before")

@@ -1,4 +1,4 @@
-from uuid import UUID
+﻿from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -22,7 +22,7 @@ async def init_upload(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    await enforce_user_rate_limit(request, f"user:{current_user.id}")
+    await enforce_user_rate_limit(request, f"user:{current_user.id}", category="uploads", user_id=current_user.id)
     return success_response(data=await UploadService(session).init_upload(current_user.id, payload))
 
 
@@ -33,7 +33,7 @@ async def complete_upload(
     current_user: User = Depends(get_current_user),
     session: AsyncSession = Depends(get_session),
 ) -> dict:
-    await enforce_user_rate_limit(request, f"user:{current_user.id}")
+    await enforce_user_rate_limit(request, f"user:{current_user.id}", category="uploads", user_id=current_user.id)
     try:
         UUID(payload.upload_id)
     except ValueError as exc:
