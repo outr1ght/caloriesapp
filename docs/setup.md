@@ -5,6 +5,7 @@
 - Windows with PowerShell
 - Python 3.11+ installed and available in `PATH`
 - Docker Desktop with `docker compose` for reproducible local PostgreSQL/Redis/MinIO
+- Node.js 20+ with `npm` available in `PATH` for commit tooling
 
 ## Recommended bootstrap
 
@@ -42,6 +43,47 @@ What the script validates:
 - runs `alembic current`
 - runs `python -m pytest`
 - performs `/api/v1/health` check if backend is already running on `127.0.0.1:8000`
+
+## Conventional Commits validation
+
+From the repository root:
+
+```powershell
+npm install
+```
+
+This installs local commit tooling and enables the `commit-msg` hook via Husky.
+
+Manual validation examples:
+
+```powershell
+echo "bad message" | npx commitlint
+echo "feat: add backend quality gate" | npx commitlint
+```
+
+Expected behavior:
+
+- invalid messages are rejected
+- valid Conventional Commits pass
+- local `git commit` is checked by `.husky/commit-msg`
+
+Supported commit types:
+
+- `feat:`
+- `fix:`
+- `docs:`
+- `test:`
+- `refactor:`
+- `chore:`
+- `ci:`
+- `build:`
+
+Examples:
+
+- `feat: add backend quality gate`
+- `fix: handle upload checksum mismatch`
+- `docs: document local backend setup`
+- `ci: add backend workflow`
 
 ## Docker-first local database verification
 
