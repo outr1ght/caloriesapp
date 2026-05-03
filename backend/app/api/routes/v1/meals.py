@@ -11,7 +11,9 @@ from app.common.exceptions import AppException, ErrorCode
 from app.common.responses import success_response
 from app.core.database import get_session
 from app.core.dependencies import get_current_user
+from app.core.pagination import PaginationMeta, build_paginated_data
 from app.core.rate_limit import enforce_user_rate_limit
+from app.core.serialization import serialize_api_data
 from app.db.models.domain_enums import AnalysisStatus, MealSource, MealType, UploadStatus
 from app.db.models.user import User
 from app.schemas.meal_analysis import MealAnalysisRequest
@@ -76,9 +78,7 @@ class MealListDataResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     items: list[MealReadResponse]
-    total: int = Field(ge=0)
-    page: int = Field(ge=1)
-    page_size: int = Field(ge=1, le=100)
+    meta: PaginationMeta
 
 
 class MealReadEnvelopeResponse(BaseModel):
@@ -169,7 +169,7 @@ async def create_meal(
     await enforce_user_rate_limit(request, f"user:{current_user.id}", user_id=current_user.id)
     service = MealService(session)
     meal = await service.create_meal(current_user.id, payload)
-    return success_response(data=MealDTO.model_validate(meal, from_attributes=True).model_dump())
+    return success_response(data=serialize_api_data(MealDTO.model_validate(meal, from_attributes=True).model_dump()))
 
 
 @router.get("", response_model=MealListEnvelopeResponse)
@@ -182,12 +182,14 @@ async def list_meals(
     service = MealService(session)
     items, total = await service.list_meals(current_user.id, MealListQuery(page=page, page_size=page_size))
     return success_response(
-        data={
-            "items": [_serialize_meal(x) for x in items],
-            "total": total,
-            "page": page,
-            "page_size": page_size,
-        }
+        data=serialize_api_data(
+            build_paginated_data(
+                items=[_serialize_meal(x) for x in items],
+                page=page,
+                page_size=page_size,
+                total=total,
+            )
+        )
     )
 
 
@@ -200,7 +202,7 @@ async def get_meal(
     _require_uuid(meal_id)
     service = MealService(session)
     meal = await service.get_meal(current_user.id, meal_id)
-    return success_response(data=_serialize_meal(meal))
+    return success_response(data=serialize_api_data(_serialize_meal(meal)))
 
 
 @router.patch("/{meal_id}")
@@ -213,7 +215,7 @@ async def update_meal(
     _require_uuid(meal_id)
     service = MealService(session)
     meal = await service.update_meal(current_user.id, meal_id, payload)
-    return success_response(data=MealDTO.model_validate(meal, from_attributes=True).model_dump())
+    return success_response(data=serialize_api_data(MealDTO.model_validate(meal, from_attributes=True).model_dump()))
 
 
 @router.delete("/{meal_id}")
@@ -239,4 +241,4 @@ async def analyze_meal(
         _require_uuid(payload.meal_id)
     service = MealAnalysisService()
     result = await service.analyze(payload.meal_id or "ephemeral", payload.uploaded_image_ids)
-    return success_response(data=result.model_dump())
+    return success_response(data=serialize_api_data(result.model_dump()))

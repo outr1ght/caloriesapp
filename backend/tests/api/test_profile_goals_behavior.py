@@ -1,3 +1,4 @@
+﻿import re
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -8,9 +9,12 @@ from app.db.models.enums import LanguageCode
 from app.services.goals_service import GoalsService
 from app.services.user_service import UserService
 
+UTC_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
+
 
 @pytest.mark.usefixtures("auth_overrides")
 def test_profile_update_flow(client, monkeypatch, sample_user):
+    now = datetime.now(UTC)
     profile = SimpleNamespace(
         id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
         user_id=sample_user.id,
@@ -19,8 +23,8 @@ def test_profile_update_flow(client, monkeypatch, sample_user):
         birth_year=1990,
         gender="male",
         height_cm=180.0,
-        created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC),
+        created_at=now,
+        updated_at=now,
     )
 
     async def _update_profile(self, user_id, payload):
@@ -38,7 +42,10 @@ def test_profile_update_flow(client, monkeypatch, sample_user):
 
     profile_response = client.patch("/api/v1/me/profile", json={"first_name": "Alex", "height_cm": 180})
     assert profile_response.status_code == 200
-    assert profile_response.json()["data"]["first_name"] == "Alex"
+    profile_body = profile_response.json()["data"]
+    assert profile_body["first_name"] == "Alex"
+    assert UTC_DATETIME_RE.fullmatch(profile_body["created_at"])
+    assert UTC_DATETIME_RE.fullmatch(profile_body["updated_at"])
 
     locale_response = client.patch("/api/v1/me/locale", json={"locale": "es", "timezone": "Europe/Madrid"})
     assert locale_response.status_code == 200
@@ -47,6 +54,7 @@ def test_profile_update_flow(client, monkeypatch, sample_user):
 
 @pytest.mark.usefixtures("auth_overrides")
 def test_goals_update_flow(client, monkeypatch, sample_user):
+    now = datetime.now(UTC)
     goal = SimpleNamespace(
         id="bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
         user_id=sample_user.id,
@@ -58,10 +66,10 @@ def test_goals_update_flow(client, monkeypatch, sample_user):
         target_fat_g=None,
         target_water_ml=None,
         is_active=True,
-        effective_from=datetime.now(UTC),
+        effective_from=now,
         effective_to=None,
-        created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC),
+        created_at=now,
+        updated_at=now,
     )
 
     async def _active(self, user_id):
@@ -82,6 +90,12 @@ def test_goals_update_flow(client, monkeypatch, sample_user):
 
     active_response = client.get("/api/v1/goals/active")
     assert active_response.status_code == 200
+    active_body = active_response.json()["data"]
+    assert active_body["strategy"] == "maintain"
+    assert active_body["activity_level"] == "moderate"
+    assert UTC_DATETIME_RE.fullmatch(active_body["effective_from"])
+    assert UTC_DATETIME_RE.fullmatch(active_body["created_at"])
+    assert UTC_DATETIME_RE.fullmatch(active_body["updated_at"])
 
     create_response = client.post(
         "/api/v1/goals",

@@ -1,4 +1,4 @@
-import pytest
+﻿import pytest
 
 from app.schemas.reports import NutritionReportDTO
 from app.services.report_service import ReportService
@@ -24,6 +24,8 @@ def test_reports_empty_result_shape(client, monkeypatch):
     assert body["ok"] is True
     assert body["data"]["days"] == []
     assert body["data"]["totals_calories"] == "0"
+    assert body["data"]["date_from"] == "2026-03-01"
+    assert body["data"]["date_to"] == "2026-03-01"
     assert set(body) == {"ok", "message_key", "data", "error", "meta"}
 
 

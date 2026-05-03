@@ -1,3 +1,4 @@
+﻿import re
 from datetime import UTC, datetime
 from types import SimpleNamespace
 
@@ -8,6 +9,8 @@ from app.db.models.domain_enums import MealPlanStatus, RecommendationStatus, Rec
 from app.services.meal_plan_service import MealPlanService
 from app.services.recommendations_service import RecommendationsService
 from app.services.weight_log_service import WeightLogService
+
+UTC_DATETIME_RE = re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z$")
 
 
 @pytest.mark.usefixtures("auth_overrides")
@@ -47,23 +50,71 @@ def test_recommendations_weights_meal_plans_basics(client, monkeypatch):
     monkeypatch.setattr(WeightLogService, "list", _list_weights)
     monkeypatch.setattr(MealPlanService, "list", _list_plans)
 
-    recommendations_response = client.get("/api/v1/recommendations")
+    recommendations_response = client.get("/api/v1/recommendations?page=1&page_size=10")
     assert recommendations_response.status_code == 200
-    assert recommendations_response.json()["data"]["total"] == 1
+    recommendations_body = recommendations_response.json()
+    assert recommendations_body["data"] == {
+        "items": [
+            {
+                "id": "11111111-1111-1111-1111-111111111111",
+                "status": "ready",
+                "type": "daily_summary",
+                "title": "Daily summary",
+            }
+        ],
+        "meta": {
+            "page": 1,
+            "page_size": 10,
+            "total": 1,
+            "total_pages": 1,
+        },
+    }
 
     recommendation_update = client.patch(
         "/api/v1/recommendations/11111111-1111-1111-1111-111111111111/status",
         json={"status": "applied"},
     )
     assert recommendation_update.status_code == 200
+    assert recommendation_update.json()["data"]["status"] == "ready"
 
-    weights_response = client.get("/api/v1/weights")
+    weights_response = client.get("/api/v1/weights?page=1&page_size=30")
     assert weights_response.status_code == 200
-    assert weights_response.json()["data"]["total"] == 1
+    weights_body = weights_response.json()
+    assert weights_body["data"]["meta"] == {
+        "page": 1,
+        "page_size": 30,
+        "total": 1,
+        "total_pages": 1,
+    }
+    assert len(weights_body["data"]["items"]) == 1
+    assert UTC_DATETIME_RE.fullmatch(weights_body["data"]["items"][0]["logged_at"])
 
     plans_response = client.get("/api/v1/meal-plans")
     assert plans_response.status_code == 200
     assert len(plans_response.json()["data"]["items"]) == 1
+    assert plans_response.json()["data"]["items"][0]["status"] == "active"
+    assert UTC_DATETIME_RE.fullmatch(plans_response.json()["data"]["items"][0]["plan_date"])
+
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_recommendations_empty_list_uses_canonical_pagination_shape(client, monkeypatch):
+    async def _list_recommendations(self, user_id, page, page_size, status, recommendation_type):
+        _ = (self, user_id, page, page_size, status, recommendation_type)
+        return [], 0
+
+    monkeypatch.setattr(RecommendationsService, "list", _list_recommendations)
+
+    response = client.get("/api/v1/recommendations?page=2&page_size=5")
+    assert response.status_code == 200
+    assert response.json()["data"] == {
+        "items": [],
+        "meta": {
+            "page": 2,
+            "page_size": 5,
+            "total": 0,
+            "total_pages": 0,
+        },
+    }
 
 
 @pytest.mark.usefixtures("auth_overrides")

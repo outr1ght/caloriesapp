@@ -1,4 +1,4 @@
-from datetime import date
+﻿from datetime import date
 
 from fastapi import APIRouter, Depends, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,6 +7,7 @@ from app.common.responses import success_response
 from app.core.database import get_session
 from app.core.dependencies import get_current_user
 from app.core.rate_limit import enforce_user_rate_limit
+from app.core.serialization import serialize_api_data
 from app.db.models.user import User
 from app.services.report_service import ReportService
 
@@ -23,4 +24,4 @@ async def nutrition_report(
 ) -> dict:
     await enforce_user_rate_limit(request, f"user:{current_user.id}")
     report = await ReportService(session).nutrition_report(current_user.id, date_from, date_to)
-    return success_response(data=report.model_dump())
+    return success_response(data=serialize_api_data(report.model_dump()))

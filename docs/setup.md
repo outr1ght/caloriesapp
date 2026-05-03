@@ -162,3 +162,24 @@ Expected responses:
 
 - `/api/v1/health` returns HTTP 200 with the standard JSON envelope
 - `/docs` returns HTTP 200 and serves Swagger UI
+
+## OpenAPI export
+
+From the repository root:
+
+```powershell
+.\scripts\export-openapi.ps1
+```
+
+What the script does:
+
+- imports the FastAPI app without starting the server
+- writes the generated schema to `docs/openapi/openapi.json` using the current `backend/.env` configuration
+- validates required mobile-integration paths and schemas
+
+Flutter consumption guidance:
+
+- use `docs/openapi/openapi.json` as the canonical backend contract snapshot
+- regenerate it after backend contract changes before mobile client code generation
+- use it for DTO/client generation and contract review, but keep runtime tests as the final source of truth
+

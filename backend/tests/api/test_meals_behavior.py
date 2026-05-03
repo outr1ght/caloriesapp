@@ -110,10 +110,16 @@ def test_meal_crud_and_ownership_checks(client, monkeypatch, sample_user):
     assert create_response.status_code == 200
     assert set(create_response.json()) == {"ok", "message_key", "data", "error", "meta"}
 
-    list_response = client.get("/api/v1/meals")
+    list_response = client.get("/api/v1/meals?page=2&page_size=1")
     assert list_response.status_code == 200
     list_body = list_response.json()
-    assert list_body["data"]["total"] == 1
+    assert set(list_body["data"]) == {"items", "meta"}
+    assert list_body["data"]["meta"] == {
+        "page": 2,
+        "page_size": 1,
+        "total": 1,
+        "total_pages": 1,
+    }
     assert set(list_body["data"]["items"][0]) == {
         "id",
         "user_id",
@@ -170,6 +176,28 @@ def test_meal_crud_and_ownership_checks(client, monkeypatch, sample_user):
 
     delete_response = client.delete(f"/api/v1/meals/{meal.id}")
     assert delete_response.status_code == 200
+
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_meal_list_empty_shape_and_meta(client, monkeypatch):
+    async def _list(self, user_id, query):
+        _ = (self, user_id, query)
+        return [], 0
+
+    monkeypatch.setattr(MealService, "list_meals", _list)
+
+    response = client.get("/api/v1/meals?page=1&page_size=20")
+    assert response.status_code == 200
+    body = response.json()
+    assert body["data"] == {
+        "items": [],
+        "meta": {
+            "page": 1,
+            "page_size": 20,
+            "total": 0,
+            "total_pages": 0,
+        },
+    }
 
 
 @pytest.mark.usefixtures("auth_overrides")

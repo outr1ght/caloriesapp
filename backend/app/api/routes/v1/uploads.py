@@ -8,6 +8,7 @@ from app.common.responses import success_response
 from app.core.database import get_session
 from app.core.dependencies import get_current_user
 from app.core.rate_limit import enforce_user_rate_limit
+from app.core.serialization import serialize_api_data
 from app.db.models.user import User
 from app.schemas.uploads import UploadCompleteRequest, UploadInitRequest
 from app.services.upload_service import UploadService
@@ -23,7 +24,7 @@ async def init_upload(
     session: AsyncSession = Depends(get_session),
 ) -> dict:
     await enforce_user_rate_limit(request, f"user:{current_user.id}", category="uploads", user_id=current_user.id)
-    return success_response(data=await UploadService(session).init_upload(current_user.id, payload))
+    return success_response(data=serialize_api_data(await UploadService(session).init_upload(current_user.id, payload)))
 
 
 @router.post("/complete")
@@ -44,4 +45,4 @@ async def complete_upload(
         ) from exc
 
     item = await UploadService(session).complete_upload(current_user.id, payload.upload_id)
-    return success_response(data={"id": item.id, "storage_key": item.storage_key, "status": item.status.value})
+    return success_response(data=serialize_api_data({"id": item.id, "storage_key": item.storage_key, "status": item.status}))

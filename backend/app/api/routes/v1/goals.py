@@ -1,4 +1,4 @@
-from uuid import UUID
+﻿from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -8,6 +8,7 @@ from app.common.responses import success_response
 from app.core.database import get_session
 from app.core.dependencies import get_current_user
 from app.core.rate_limit import enforce_user_rate_limit
+from app.core.serialization import serialize_api_data
 from app.db.models.user import User
 from app.schemas.goals import NutritionGoalCreateRequest, NutritionGoalDTO, NutritionGoalUpdateRequest
 from app.services.goals_service import GoalsService
@@ -31,7 +32,8 @@ async def get_active_goal(
     await enforce_user_rate_limit(request, f"user:{current_user.id}")
     service = GoalsService(session)
     goal = await service.get_active_goal(current_user.id)
-    return success_response(data=NutritionGoalDTO.model_validate(goal, from_attributes=True).model_dump() if goal else None)
+    data = NutritionGoalDTO.model_validate(goal, from_attributes=True).model_dump() if goal else None
+    return success_response(data=serialize_api_data(data))
 
 
 @router.post("")
@@ -44,7 +46,7 @@ async def create_goal(
     await enforce_user_rate_limit(request, f"user:{current_user.id}")
     service = GoalsService(session)
     goal = await service.create_goal(current_user.id, payload)
-    return success_response(data=NutritionGoalDTO.model_validate(goal, from_attributes=True).model_dump())
+    return success_response(data=serialize_api_data(NutritionGoalDTO.model_validate(goal, from_attributes=True).model_dump()))
 
 
 @router.patch("/{goal_id}")
@@ -59,4 +61,4 @@ async def update_goal(
     _require_uuid(goal_id)
     service = GoalsService(session)
     goal = await service.update_goal(current_user.id, goal_id, payload)
-    return success_response(data=NutritionGoalDTO.model_validate(goal, from_attributes=True).model_dump())
+    return success_response(data=serialize_api_data(NutritionGoalDTO.model_validate(goal, from_attributes=True).model_dump()))
