@@ -18,7 +18,11 @@ class MealRepository(BaseRepository[Meal]):
         return meal
 
     async def get_meal(self, user_id: str, meal_id: str) -> Meal | None:
-        result = await self.session.execute(select(Meal).where(Meal.id == meal_id, Meal.user_id == user_id, Meal.deleted_at.is_(None)).options(selectinload(Meal.items)))
+        result = await self.session.execute(
+            select(Meal)
+            .where(Meal.id == meal_id, Meal.user_id == user_id, Meal.deleted_at.is_(None))
+            .options(selectinload(Meal.items), selectinload(Meal.uploaded_images))
+        )
         return result.scalar_one_or_none()
 
     async def list_meals(self, *, user_id: str, page: int, page_size: int, from_dt: datetime | None, to_dt: datetime | None) -> tuple[list[Meal], int]:
@@ -28,7 +32,14 @@ class MealRepository(BaseRepository[Meal]):
         if to_dt is not None:
             filters.append(Meal.eaten_at <= to_dt)
 
-        result = await self.session.execute(select(Meal).where(and_(*filters)).order_by(Meal.eaten_at.desc()).offset((page - 1) * page_size).limit(page_size).options(selectinload(Meal.items)))
+        result = await self.session.execute(
+            select(Meal)
+            .where(and_(*filters))
+            .order_by(Meal.eaten_at.desc())
+            .offset((page - 1) * page_size)
+            .limit(page_size)
+            .options(selectinload(Meal.items), selectinload(Meal.uploaded_images))
+        )
         count_result = await self.session.execute(select(func.count(Meal.id)).where(and_(*filters)))
         return list(result.scalars().all()), int(count_result.scalar_one())
 

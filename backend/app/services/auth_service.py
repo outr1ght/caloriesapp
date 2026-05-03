@@ -7,6 +7,9 @@ from app.core.config import get_settings
 from app.core.security import TokenPair, create_token_pair, decode_token, hash_password, verify_password
 from app.core.token_store import TokenStore
 from app.db.models.enums import AuthProvider
+from app.integrations.oauth.apple import AppleOAuthProvider
+from app.integrations.oauth.base import OAuthProvider
+from app.integrations.oauth.google import GoogleOAuthProvider
 from app.repositories.user_repository import UserRepository
 from app.schemas.auth import LoginRequest, OAuthLoginRequest, RegisterRequest
 
@@ -31,6 +34,17 @@ class AuthService:
             )
         return user
 
+    @staticmethod
+    def _oauth_provider(provider: AuthProvider) -> OAuthProvider:
+        providers: dict[AuthProvider, OAuthProvider] = {
+            AuthProvider.GOOGLE: GoogleOAuthProvider(),
+            AuthProvider.APPLE: AppleOAuthProvider(),
+        }
+        resolved = providers.get(provider)
+        if resolved is None:
+            raise AppException(code=ErrorCode.VALIDATION_ERROR, message_key="errors.auth.invalid_oauth_provider", status_code=422)
+        return resolved
+
     async def _allow_refresh(self, jti: str) -> None:
         try:
             await self.token_store.allow_refresh_jti(jti, ttl_days=self._refresh_ttl_days())
@@ -44,6 +58,16 @@ class AuthService:
     async def _revoke_refresh(self, jti: str) -> None:
         try:
             await self.token_store.revoke_refresh_jti(jti, ttl_days=self._refresh_ttl_days())
+        except RuntimeError as exc:
+            raise AppException(
+                code=ErrorCode.INTERNAL_ERROR,
+                message_key="errors.auth.session_store_unavailable",
+                status_code=503,
+            ) from exc
+
+    async def _rotate_refresh_jti_atomically(self, old_jti: str, new_jti: str) -> bool:
+        try:
+            return await self.token_store.rotate_refresh_jti_atomically(old_jti, new_jti, ttl_days=self._refresh_ttl_days())
         except RuntimeError as exc:
             raise AppException(
                 code=ErrorCode.INTERNAL_ERROR,
@@ -108,16 +132,14 @@ class AuthService:
         if payload.token_type.value != "refresh":
             raise AppException(code=ErrorCode.AUTH_INVALID_TOKEN, message_key="errors.auth.invalid_token_type", status_code=401)
 
-        if not await self._is_refresh_allowed(payload.jti):
-            raise AppException(code=ErrorCode.AUTH_UNAUTHORIZED, message_key="errors.auth.refresh_revoked", status_code=401)
-
         user = await self.users.get_by_id(payload.sub)
         self._ensure_active_user(user)
 
-        await self._revoke_refresh(payload.jti)
         new_pair = create_token_pair(payload.sub)
         new_payload = decode_token(new_pair.refresh_token)
-        await self._allow_refresh(new_payload.jti)
+        rotated = await self._rotate_refresh_jti_atomically(payload.jti, new_payload.jti)
+        if not rotated:
+            raise AppException(code=ErrorCode.AUTH_UNAUTHORIZED, message_key="errors.auth.refresh_revoked", status_code=401)
         return new_pair
 
     async def logout(self, refresh_token: str | None) -> None:
@@ -127,27 +149,33 @@ class AuthService:
             payload = decode_token(refresh_token)
         except ValueError:
             return
+        if payload.token_type.value != "refresh":
+            return
         await self._revoke_refresh(payload.jti)
 
     async def oauth_login(self, payload: OAuthLoginRequest) -> tuple[object, TokenPair]:
         if payload.provider == AuthProvider.LOCAL:
             raise AppException(code=ErrorCode.VALIDATION_ERROR, message_key="errors.auth.invalid_oauth_provider", status_code=422)
-
-        provider_user_id = payload.id_token or payload.code
-        if not provider_user_id:
+        if not payload.id_token:
             raise AppException(code=ErrorCode.VALIDATION_ERROR, message_key="errors.auth.oauth_missing_token", status_code=422)
 
-        identity = await self.users.get_identity(payload.provider, provider_user_id)
+        oauth_user = await self._oauth_provider(payload.provider).resolve_user(
+            code=payload.code,
+            id_token=payload.id_token,
+            redirect_uri=payload.redirect_uri,
+        )
+
+        identity = await self.users.get_identity(payload.provider, oauth_user.provider_user_id)
         if identity is not None:
             user = self._ensure_active_user(identity.user)
         else:
-            synthetic_email = f"{payload.provider.value}_{provider_user_id[:16]}@oauth.local"
-            user = await self.users.create_user(email=synthetic_email, hashed_password=None, locale="en", timezone="UTC")
+            email = oauth_user.email or f"{payload.provider.value}_{oauth_user.provider_user_id[:16]}@oauth.local"
+            user = await self.users.create_user(email=email, hashed_password=None, locale="en", timezone="UTC")
             await self.users.create_identity(
                 user_id=user.id,
                 provider=payload.provider,
-                provider_user_id=provider_user_id,
-                provider_email=None,
+                provider_user_id=oauth_user.provider_user_id,
+                provider_email=oauth_user.email,
             )
             await self.users.get_or_create_profile(user.id)
 

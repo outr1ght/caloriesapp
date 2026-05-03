@@ -1,4 +1,4 @@
-﻿from datetime import UTC, datetime
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 import pytest
@@ -105,6 +105,26 @@ def test_refresh_replay_rejected(client, monkeypatch):
     assert body["ok"] is False
     assert body["error"]["code"] == ErrorCode.AUTH_UNAUTHORIZED.value
     assert body["message_key"] == "errors.auth.refresh_revoked"
+
+
+@pytest.mark.usefixtures("auth_overrides")
+def test_refresh_session_store_unavailable_envelope_unchanged(client, monkeypatch):
+    async def _refresh(self, refresh_token):
+        _ = refresh_token
+        raise AppException(
+            code=ErrorCode.INTERNAL_ERROR,
+            message_key="errors.auth.session_store_unavailable",
+            status_code=503,
+        )
+
+    monkeypatch.setattr(AuthService, "refresh", _refresh)
+
+    response = client.post("/api/v1/auth/refresh", json={"refresh_token": VALID_REFRESH_2})
+    assert response.status_code == 503
+    body = response.json()
+    assert body["ok"] is False
+    assert body["message_key"] == "errors.auth.session_store_unavailable"
+    assert body["error"]["code"] == ErrorCode.INTERNAL_ERROR.value
 
 
 @pytest.mark.usefixtures("auth_overrides")

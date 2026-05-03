@@ -1,15 +1,17 @@
 ﻿from datetime import UTC, datetime
+from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
 
 from app.common.exceptions import AppException, ErrorCode
-from app.db.models.domain_enums import MealSource, MealType
+from app.db.models.domain_enums import MealSource, MealType, UploadStatus
 from app.services.meal_service import MealService
 
 
 @pytest.mark.usefixtures("auth_overrides")
 def test_meal_crud_and_ownership_checks(client, monkeypatch, sample_user):
+    now = datetime.now(UTC)
     meal = SimpleNamespace(
         id="aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
         user_id=sample_user.id,
@@ -17,16 +19,40 @@ def test_meal_crud_and_ownership_checks(client, monkeypatch, sample_user):
         notes=None,
         meal_type=MealType.LUNCH,
         source=MealSource.MANUAL,
-        eaten_at=datetime.now(UTC),
+        eaten_at=now,
         analysis_status="ready",
         nutrition_value_id=None,
         metadata_json=None,
-        created_at=datetime.now(UTC),
-        updated_at=datetime.now(UTC),
+        created_at=now,
+        updated_at=now,
         deleted_at=None,
-        items=[],
-        nutrition_value=None,
-        uploaded_images=[],
+        items=[
+            SimpleNamespace(
+                id="cccccccc-cccc-cccc-cccc-cccccccccccc",
+                ingredient_id=None,
+                food_product_id=None,
+                display_name="Chicken breast",
+                quantity=Decimal("150"),
+                unit="g",
+                position=0,
+            )
+        ],
+        nutrition_value=SimpleNamespace(
+            calories=Decimal("320"),
+            protein_g=Decimal("35"),
+            carbs_g=Decimal("12"),
+            fat_g=Decimal("9"),
+        ),
+        uploaded_images=[
+            SimpleNamespace(
+                id="dddddddd-dddd-dddd-dddd-dddddddddddd",
+                storage_key="uploads/user/meal-photo.jpg",
+                mime_type="image/jpeg",
+                file_size=12345,
+                status=UploadStatus.UPLOADED,
+                created_at=now,
+            )
+        ],
     )
 
     async def _create(self, user_id, payload):
@@ -86,10 +112,58 @@ def test_meal_crud_and_ownership_checks(client, monkeypatch, sample_user):
 
     list_response = client.get("/api/v1/meals")
     assert list_response.status_code == 200
-    assert list_response.json()["data"]["total"] == 1
+    list_body = list_response.json()
+    assert list_body["data"]["total"] == 1
+    assert set(list_body["data"]["items"][0]) == {
+        "id",
+        "user_id",
+        "title",
+        "notes",
+        "meal_type",
+        "source",
+        "eaten_at",
+        "analysis_status",
+        "nutrition_summary",
+        "items",
+        "images",
+        "created_at",
+        "updated_at",
+    }
+    assert list_body["data"]["items"][0]["nutrition_summary"] == {
+        "calories": "320",
+        "protein_g": "35",
+        "carbs_g": "12",
+        "fat_g": "9",
+    }
+    assert list_body["data"]["items"][0]["items"] == [
+        {
+            "id": "cccccccc-cccc-cccc-cccc-cccccccccccc",
+            "ingredient_id": None,
+            "food_product_id": None,
+            "display_name": "Chicken breast",
+            "quantity": "150",
+            "unit": "g",
+            "position": 0,
+        }
+    ]
+    assert list_body["data"]["items"][0]["images"] == [
+        {
+            "id": "dddddddd-dddd-dddd-dddd-dddddddddddd",
+            "storage_key": "uploads/user/meal-photo.jpg",
+            "mime_type": "image/jpeg",
+            "file_size": 12345,
+            "status": "uploaded",
+            "created_at": now.isoformat().replace("+00:00", "Z"),
+        }
+    ]
 
     get_response = client.get(f"/api/v1/meals/{meal.id}")
     assert get_response.status_code == 200
+    get_body = get_response.json()
+    assert get_body["data"]["id"] == meal.id
+    assert get_body["data"]["nutrition_summary"]["calories"] == "320"
+    assert len(get_body["data"]["items"]) == 1
+    assert len(get_body["data"]["images"]) == 1
 
     update_response = client.patch(f"/api/v1/meals/{meal.id}", json={"title": "Updated"})
     assert update_response.status_code == 200
@@ -151,3 +225,17 @@ def test_meal_invalid_uuid_rejected(client):
     response = client.get("/api/v1/meals/not-a-uuid")
     assert response.status_code == 422
     assert response.json()["error"]["code"] == ErrorCode.VALIDATION_ERROR.value
+
+
+def test_meal_openapi_exposes_explicit_read_schemas(client):
+    response = client.get("/openapi.json")
+    assert response.status_code == 200
+    schema = response.json()
+
+    list_schema_ref = schema["paths"]["/api/v1/meals"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+    detail_schema_ref = schema["paths"]["/api/v1/meals/{meal_id}"]["get"]["responses"]["200"]["content"]["application/json"]["schema"]["$ref"]
+
+    assert list_schema_ref.endswith("/MealListEnvelopeResponse")
+    assert detail_schema_ref.endswith("/MealReadEnvelopeResponse")
+    assert "MealReadResponse" in schema["components"]["schemas"]
+    assert "MealListDataResponse" in schema["components"]["schemas"]
