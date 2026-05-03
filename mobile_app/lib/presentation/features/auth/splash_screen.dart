@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:calories_mobile/l10n/generated/app_localizations.dart';
 
 class SplashScreen extends StatelessWidget {
   const SplashScreen({super.key});
@@ -10,3 +10,4 @@ class SplashScreen extends StatelessWidget {
     return Scaffold(body: Center(child: Text(l10n.loadingLabel)));
   }
 }
+

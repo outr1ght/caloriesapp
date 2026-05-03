@@ -1,3 +1,5 @@
+﻿import '../api/generated/generated.dart';
+
 class AuthTokensModel {
   const AuthTokensModel({required this.accessToken, required this.refreshToken});
 
@@ -9,6 +11,13 @@ class AuthTokensModel {
     return AuthTokensModel(
       accessToken: (tokens['access_token'] as String?) ?? '',
       refreshToken: (tokens['refresh_token'] as String?) ?? '',
+    );
+  }
+
+  factory AuthTokensModel.fromGenerated(GeneratedAuthSession session) {
+    return AuthTokensModel(
+      accessToken: session.tokens.accessToken,
+      refreshToken: session.tokens.refreshToken,
     );
   }
 }

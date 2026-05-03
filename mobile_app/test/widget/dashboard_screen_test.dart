@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:calories_mobile/l10n/generated/app_localizations.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,3 +51,4 @@ void main() {
     expect(find.textContaining('Unable'), findsWidgets);
   });
 }
+

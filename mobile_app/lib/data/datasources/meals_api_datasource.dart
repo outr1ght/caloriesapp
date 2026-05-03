@@ -1,29 +1,23 @@
-import '../../core/network/api_client.dart';
+﻿import '../api/generated/generated.dart';
 
 class MealsApiDatasource {
-  MealsApiDatasource(this._client);
+  MealsApiDatasource(client) : _generated = GeneratedMealsApi(client);
 
-  final ApiClient _client;
+  final GeneratedMealsApi _generated;
 
-  Future<Map<String, dynamic>> list({int page = 1, int pageSize = 20}) async {
-    final response = await _client.get<Map<String, dynamic>>(
-      '/meals',
-      queryParameters: {'page': page, 'page_size': pageSize},
-    );
-    return response.data ?? <String, dynamic>{};
+  Future<GeneratedMealListPage> list({int page = 1, int pageSize = 20}) {
+    return _generated.listMeals(page: page, pageSize: pageSize);
   }
 
-  Future<Map<String, dynamic>> getById(String id) async {
-    final response = await _client.get<Map<String, dynamic>>('/meals/$id');
-    return response.data ?? <String, dynamic>{};
+  Future<GeneratedMealRead> getById(String id) {
+    return _generated.getMeal(id);
   }
 
-  Future<Map<String, dynamic>> update(String id, Map<String, dynamic> payload) async {
-    final response = await _client.patch<Map<String, dynamic>>('/meals/$id', data: payload);
-    return response.data ?? <String, dynamic>{};
+  Future<GeneratedMealRead> update(String id, {required String title}) {
+    return _generated.updateMeal(id, title: title);
   }
 
-  Future<void> delete(String id) async {
-    await _client.delete<Map<String, dynamic>>('/meals/$id');
+  Future<void> delete(String id) {
+    return _generated.deleteMeal(id);
   }
 }

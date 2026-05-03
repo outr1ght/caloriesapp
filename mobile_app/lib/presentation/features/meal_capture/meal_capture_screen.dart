@@ -1,7 +1,7 @@
-import 'dart:io';
+﻿import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:calories_mobile/l10n/generated/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -47,3 +47,4 @@ class _MealCaptureScreenState extends State<MealCaptureScreen> {
     );
   }
 }
+

@@ -1,5 +1,5 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+﻿import 'package:flutter/material.dart';
+import 'package:calories_mobile/l10n/generated/app_localizations.dart';
 import 'package:go_router/go_router.dart';
 
 class OnboardingScreen extends StatefulWidget {
@@ -71,3 +71,4 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 }
+

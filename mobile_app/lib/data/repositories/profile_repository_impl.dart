@@ -28,7 +28,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
     final wData = (weightRoot['data'] as Map<String, dynamic>?) ?? weightRoot;
     final items = (wData['items'] as List<dynamic>? ?? const []).whereType<Map<String, dynamic>>().toList();
-    final weight = items.isEmpty ? 0 : WeightLogModel.fromJson(items.first).weightKg;
+    final double weight = items.isEmpty ? 0.0 : WeightLogModel.fromJson(items.first).weightKg;
 
     final model = ProfileModel.fromApi(me, weightKg: weight, activityLevel: activity);
 
@@ -61,3 +61,4 @@ class ProfileRepositoryImpl implements ProfileRepository {
     await _datasource.saveActivityLevel(profile.activityLevel);
   }
 }
+

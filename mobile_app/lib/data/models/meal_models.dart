@@ -1,3 +1,4 @@
+﻿import '../api/generated/generated.dart';
 import '../../domain/entities/meal_entity.dart';
 
 class MealModel {
@@ -16,14 +17,26 @@ class MealModel {
   final String mealType;
 
   factory MealModel.fromJson(Map<String, dynamic> json) {
-    final nutrition = (json['nutrition'] as Map<String, dynamic>?) ?? const {};
+    final nutrition = ((json['nutrition_summary'] ?? json['nutrition']) as Map?)?.cast<String, dynamic>() ?? const {};
     final title = ((json['title'] as String?) ?? '').trim();
+    final eatenAtRaw = (json['eaten_at'] as String?) ?? (json['logged_at'] as String?) ?? '';
     return MealModel(
       id: (json['id'] as String?) ?? '',
       title: title.isEmpty ? ((json['meal_type'] as String?) ?? '') : title,
       calories: _asDouble(nutrition['calories']),
-      loggedAt: DateTime.tryParse((json['eaten_at'] as String?) ?? '')?.toUtc() ?? DateTime.now().toUtc(),
+      loggedAt: DateTime.tryParse(eatenAtRaw)?.toUtc() ?? DateTime.now().toUtc(),
       mealType: (json['meal_type'] as String?) ?? 'meal',
+    );
+  }
+
+  factory MealModel.fromGenerated(GeneratedMealRead meal) {
+    final title = (meal.title ?? '').trim();
+    return MealModel(
+      id: meal.id,
+      title: title.isEmpty ? meal.mealType : title,
+      calories: meal.nutritionSummary?.calories ?? 0,
+      loggedAt: meal.eatenAt,
+      mealType: meal.mealType,
     );
   }
 
